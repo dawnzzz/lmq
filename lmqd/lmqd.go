@@ -2,14 +2,17 @@ package lmqd
 
 import (
 	"github.com/dawnzzz/lmq/iface"
+	"github.com/dawnzzz/lmq/lmqd/topic"
+	"github.com/dawnzzz/lmq/logger"
 	"os"
 	"os/signal"
+	"sync"
 	"sync/atomic"
 	"syscall"
 )
 
 const (
-	starting = int32(iota)
+	starting = uint32(iota)
 	running
 	closing
 	closed
@@ -17,8 +20,9 @@ const (
 
 // LmqDaemon lmqd
 type LmqDaemon struct {
-	status atomic.Int32            // 当前运行状态：starting、running、closing
-	topics map[string]iface.ITopic // 保存所有的topic字典
+	status     atomic.Uint32           // 当前运行状态：starting、running、closing
+	topics     map[string]iface.ITopic // 保存所有的topic字典
+	topicsLock sync.RWMutex            // 控制对topic字典的互斥访问
 
 	startChan   chan struct{}
 	closingChan chan struct{}
@@ -27,6 +31,8 @@ type LmqDaemon struct {
 
 func NewLmqDaemon() iface.ILmqDaemon {
 	lmqd := &LmqDaemon{
+		topics: map[string]iface.ITopic{},
+
 		startChan:   make(chan struct{}),
 		closingChan: make(chan struct{}),
 		closedChan:  make(chan struct{}, 1),
@@ -61,7 +67,6 @@ func (lmqd *LmqDaemon) Main() {
 func (lmqd *LmqDaemon) Start() {
 	select {
 	case lmqd.startChan <- struct{}{}:
-		lmqd.status.Store(running)
 	default:
 	}
 }
@@ -82,32 +87,67 @@ func (lmqd *LmqDaemon) Close() {
 
 // AddTopic 添加topic
 func (lmqd *LmqDaemon) AddTopic(name string) error {
-	//TODO implement me
-	panic("implement me")
+	// 查询topic是否已经存在
+	lmqd.topicsLock.RLock()
+	if _, exist := lmqd.topics[name]; exist {
+		// topic已经存在，直接返回
+		lmqd.topicsLock.RUnlock()
+		return ErrTopicDuplicated
+	}
+	lmqd.topicsLock.RUnlock()
+
+	// 不存在则新建一个topic
+	// 换一个更细粒度的锁
+	lmqd.topicsLock.Lock()
+	defer lmqd.topicsLock.Unlock()
+	if _, exist := lmqd.topics[name]; exist {
+		// topic已经存在，直接返回
+		return ErrTopicDuplicated
+	}
+
+	t := topic.NewTopic(name)
+	t.Start()
+	lmqd.topics[name] = t
+
+	return nil
 }
 
 // GetTopic 获取topic
 func (lmqd *LmqDaemon) GetTopic(name string) (iface.ITopic, bool) {
-	//TODO implement me
-	panic("implement me")
+
+	lmqd.topicsLock.RLock()
+	defer lmqd.topicsLock.RUnlock()
+
+	t, exists := lmqd.topics[name]
+
+	return t, exists
 }
 
 // Publish 发布消息
-func (lmqd *LmqDaemon) Publish(topic iface.ITopic, message iface.IMessage) {
-	//TODO implement me
-	panic("implement me")
+func (lmqd *LmqDaemon) Publish(topic iface.ITopic, message iface.IMessage) error {
+	if lmqd.status.Load() != running {
+		return ErrLMQDIsNotRunning
+	}
+
+	err := topic.Publish(message)
+	return err
 }
 
 // CloseTopic 关闭一个topic
 func (lmqd *LmqDaemon) CloseTopic(topic iface.ITopic) {
-	//TODO implement me
-	panic("implement me")
+	lmqd.topicsLock.Lock()
+	defer lmqd.topicsLock.Unlock()
+
+	topic.Close()
 }
 
 // DeleteTopic 删除一个topic
 func (lmqd *LmqDaemon) DeleteTopic(topic iface.ITopic) {
-	//TODO implement me
-	panic("implement me")
+	lmqd.topicsLock.Lock()
+	defer lmqd.topicsLock.Unlock()
+
+	topic.Delete()
+	delete(lmqd.topics, topic.GetName())
 }
 
 func (lmqd *LmqDaemon) messagePump() {
@@ -121,6 +161,10 @@ func (lmqd *LmqDaemon) messagePump() {
 		break
 	}
 
+	// 改为运行中状态
+	lmqd.status.Store(running)
+	logger.Info("lmqd is running")
+
 	for {
 		select {
 		case <-lmqd.closingChan:
@@ -129,7 +173,12 @@ func (lmqd *LmqDaemon) messagePump() {
 	}
 
 Exit:
+	for _, t := range lmqd.topics {
+		t.Close()
+	}
+
 	// 已经完全退出
 	lmqd.status.Store(closed)
 	lmqd.closedChan <- struct{}{}
+	logger.Info("lmqd is exited")
 }

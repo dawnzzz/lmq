@@ -1,4 +1,4 @@
-package conf
+package logger
 
 import (
 	"github.com/sirupsen/logrus"
