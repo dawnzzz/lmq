@@ -1,104 +1,53 @@
-package topic
+package basestructure
 
 import (
 	"github.com/dawnzzz/lmq/iface"
 	"github.com/dawnzzz/lmq/logger"
+	"github.com/dawnzzz/lmq/pkg/e"
 	"sync"
 	"sync/atomic"
 )
 
-const (
-	starting = uint32(iota)
-	running
-	pausing
-	closing
-	closed
-)
-
 type Topic struct {
+	base
+
 	name         string
 	status       atomic.Uint32             // 当前运行状态：starting、running、pausing、closing、closed
 	channels     map[string]iface.IChannel // 保存所有的channel字典
 	channelsLock sync.RWMutex              // 控制对channel字典的互斥访问
 
 	memoryMsgChan chan iface.IMessage // 内存chan
-
-	startChan   chan struct{}
-	updateChan  chan struct{}
-	pauseChan   chan struct{}
-	closingChan chan struct{}
-	closedChan  chan struct{}
 }
 
 func NewTopic(name string) iface.ITopic {
 	topic := &Topic{
+		base: newBase(),
+
 		name:     name,
 		channels: map[string]iface.IChannel{},
 
 		memoryMsgChan: make(chan iface.IMessage, 1024), // TODO：memory chan size 通过配置文件配置
 
-		startChan:   make(chan struct{}),
-		updateChan:  make(chan struct{}),
-		pauseChan:   make(chan struct{}),
-		closingChan: make(chan struct{}),
-		closedChan:  make(chan struct{}, 1),
 	}
+	topic.status.Store(starting)
 
 	go topic.messagePump()
 
 	return topic
 }
 
-// Start 启动topic
-func (topic *Topic) Start() {
-	select {
-	case topic.startChan <- struct{}{}:
-	default:
-	}
-}
-
-// Pause 暂停topic
-func (topic *Topic) Pause() {
-	if topic.status.CompareAndSwap(running, pausing) {
-		return
-	}
-
-	select {
-	case topic.pauseChan <- struct{}{}:
-		topic.status.CompareAndSwap(running, pausing)
-	}
-}
-
-// UnPause 恢复topic
-func (topic *Topic) UnPause() {
-	if topic.status.CompareAndSwap(pausing, running) {
-		return
-	}
-
-	select {
-	case topic.pauseChan <- struct{}{}:
-		topic.status.CompareAndSwap(pausing, running)
-	}
-}
-
-// Close 关闭topic
-func (topic *Topic) Close() {
-	// 检查是否处于关闭状态
-	if topic.status.Load() == closing {
-		return
-	}
-
-	select {
-	case topic.closingChan <- struct{}{}:
-		topic.status.Store(closing)
-	default:
-	}
-}
-
 // Delete 关闭并删除topic
 func (topic *Topic) Delete() {
-	//TODO implement me
-	panic("implement me")
+	topic.channelsLock.Lock()
+	defer topic.channelsLock.Unlock()
+
+	// 关闭自己
+	topic.Close()
+
+	// 删除所有的channel
+	for _, channel := range topic.channels {
+		channel.Delete()
+	}
 }
 
 // GetName 获取topic的名称
@@ -106,29 +55,53 @@ func (topic *Topic) GetName() string {
 	return topic.name
 }
 
-// IsPausing 返回是否处于暂停状态
-func (topic *Topic) IsPausing() bool {
-	return topic.status.Load() == pausing
-}
-
-// GetChannel 根据名称获取channel
-func (topic *Topic) GetChannel(name string) (iface.IChannel, bool) {
-	topic.channelsLock.RLock()
-	defer topic.channelsLock.RUnlock()
-
-	channel, exist := topic.channels[name]
-
-	return channel, exist
-}
-
-// CloseChannel 关闭channel
-func (topic *Topic) CloseChannel(channel iface.IChannel) {
+func (topic *Topic) Empty() {
 	//TODO implement me
 	panic("implement me")
 }
 
-// DeleteChannel 删除channel
-func (topic *Topic) DeleteChannel(channel iface.IChannel) {
+// GetChannel 获取一个channel，如果没有就新建一个
+func (topic *Topic) GetChannel(name string) iface.IChannel {
+	// 查询channel是否已经存在
+	topic.channelsLock.RLock()
+	if t, exist := topic.channels[name]; exist {
+		// topic已经存在，直接返回
+		topic.channelsLock.RUnlock()
+		return t
+	}
+	topic.channelsLock.RUnlock()
+
+	// 不存在则新建一个topic
+	// 换一个更细粒度的锁
+	topic.channelsLock.Lock()
+	defer topic.channelsLock.Unlock()
+	if t, exist := topic.channels[name]; exist {
+		// topic已经存在，直接返回
+		return t
+	}
+
+	c := NewChannel(name)
+	c.Start()
+	topic.channels[name] = c
+
+	return c
+}
+
+// GetExistingChannel 根据名字获取一个已存在的channel
+func (topic *Topic) GetExistingChannel(name string) (iface.IChannel, error) {
+	topic.channelsLock.RLock()
+	defer topic.channelsLock.RUnlock()
+
+	channel, exist := topic.channels[name]
+	if !exist {
+		return nil, e.ErrChannelNotFound
+	}
+
+	return channel, nil
+}
+
+// DeleteExistingChannel 删除一个已经存在的channel
+func (topic *Topic) DeleteExistingChannel(name string) error {
 	//TODO implement me
 	panic("implement me")
 }
@@ -183,5 +156,6 @@ func (topic *Topic) messagePump() {
 
 Exit:
 	topic.closedChan <- struct{}{}
+	topic.status.Store(Closed)
 	logger.Infof("topic [%s] is exited", topic.name)
 }

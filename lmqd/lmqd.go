@@ -2,8 +2,9 @@ package lmqd
 
 import (
 	"github.com/dawnzzz/lmq/iface"
-	"github.com/dawnzzz/lmq/lmqd/topic"
+	"github.com/dawnzzz/lmq/lmqd/basestructure"
 	"github.com/dawnzzz/lmq/logger"
+	"github.com/dawnzzz/lmq/pkg/e"
 	"os"
 	"os/signal"
 	"sync"
@@ -37,6 +38,7 @@ func NewLmqDaemon() iface.ILmqDaemon {
 		closingChan: make(chan struct{}),
 		closedChan:  make(chan struct{}, 1),
 	}
+	lmqd.status.Store(starting)
 
 	go lmqd.messagePump()
 
@@ -85,14 +87,14 @@ func (lmqd *LmqDaemon) Close() {
 	}
 }
 
-// AddTopic 添加topic
-func (lmqd *LmqDaemon) AddTopic(name string) error {
+// GetTopic 根据名字获取一个topic，如果不存在则新建一个topic
+func (lmqd *LmqDaemon) GetTopic(name string) iface.ITopic {
 	// 查询topic是否已经存在
 	lmqd.topicsLock.RLock()
-	if _, exist := lmqd.topics[name]; exist {
+	if t, exist := lmqd.topics[name]; exist {
 		// topic已经存在，直接返回
 		lmqd.topicsLock.RUnlock()
-		return ErrTopicDuplicated
+		return t
 	}
 	lmqd.topicsLock.RUnlock()
 
@@ -100,54 +102,45 @@ func (lmqd *LmqDaemon) AddTopic(name string) error {
 	// 换一个更细粒度的锁
 	lmqd.topicsLock.Lock()
 	defer lmqd.topicsLock.Unlock()
-	if _, exist := lmqd.topics[name]; exist {
+	if t, exist := lmqd.topics[name]; exist {
 		// topic已经存在，直接返回
-		return ErrTopicDuplicated
+		return t
 	}
 
-	t := topic.NewTopic(name)
+	t := basestructure.NewTopic(name)
 	t.Start()
 	lmqd.topics[name] = t
 
-	return nil
+	return t
 }
 
-// GetTopic 获取topic
-func (lmqd *LmqDaemon) GetTopic(name string) (iface.ITopic, bool) {
-
+// GetExistingTopic 获取一个已经存在的topic
+func (lmqd *LmqDaemon) GetExistingTopic(topicName string) (iface.ITopic, error) {
 	lmqd.topicsLock.RLock()
 	defer lmqd.topicsLock.RUnlock()
 
-	t, exists := lmqd.topics[name]
+	t, exist := lmqd.topics[topicName]
+	if !exist {
+		return nil, e.ErrTopicNotFound
+	}
 
-	return t, exists
+	return t, nil
+}
+
+// DeleteExistingTopic 删除一个已经存在的topic
+func (lmqd *LmqDaemon) DeleteExistingTopic(topicName string) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 // Publish 发布消息
 func (lmqd *LmqDaemon) Publish(topic iface.ITopic, message iface.IMessage) error {
 	if lmqd.status.Load() != running {
-		return ErrLMQDIsNotRunning
+		return e.ErrLMQDIsNotRunning
 	}
 
 	err := topic.Publish(message)
 	return err
-}
-
-// CloseTopic 关闭一个topic
-func (lmqd *LmqDaemon) CloseTopic(topic iface.ITopic) {
-	lmqd.topicsLock.Lock()
-	defer lmqd.topicsLock.Unlock()
-
-	topic.Close()
-}
-
-// DeleteTopic 删除一个topic
-func (lmqd *LmqDaemon) DeleteTopic(topic iface.ITopic) {
-	lmqd.topicsLock.Lock()
-	defer lmqd.topicsLock.Unlock()
-
-	topic.Delete()
-	delete(lmqd.topics, topic.GetName())
 }
 
 func (lmqd *LmqDaemon) messagePump() {
