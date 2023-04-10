@@ -8,7 +8,6 @@ import (
 
 func TestLmqd(t *testing.T) {
 	lmqd := NewLmqDaemon()
-	lmqd.Start()
 
 	topic := lmqd.GetTopic("test")
 	if topic == nil {
@@ -24,5 +23,5 @@ func TestLmqd(t *testing.T) {
 
 	topic.Close()
 
-	lmqd.Close()
+	lmqd.Exit()
 }

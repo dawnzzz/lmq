@@ -1,8 +1,7 @@
 package iface
 
 type ILmqDaemon interface {
-	Start() // 开启lmqd
-	Close() // 关闭lmqd
+	Exit() // 退出lmqd
 	Main()
 
 	GetTopic(name string) ITopic                       // 根据名字获取一个topic，如果没有就新增一个
