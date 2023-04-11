@@ -131,13 +131,3 @@ func (lmqd *LmqDaemon) DeleteExistingTopic(topicName string) error {
 
 	return nil
 }
-
-// Publish 发布消息
-func (lmqd *LmqDaemon) Publish(topic iface.ITopic, message iface.IMessage) error {
-	if lmqd.status.Load() != running {
-		return e.ErrLMQDIsNotRunning
-	}
-
-	err := topic.Publish(message)
-	return err
-}
