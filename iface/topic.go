@@ -13,5 +13,5 @@ type ITopic interface {
 	GetChannel(name string) IChannel                  // 获取一个channel，如果没有就新建一个
 	GetExistingChannel(name string) (IChannel, error) // 根据名字获取一个已存在的channel
 	DeleteExistingChannel(name string) error          // 删除一个存在的channel
-	Publish(message IMessage) error                   // 向topic发布一个消息
+	PutMessage(message IMessage) error                // 向topic发布一个消息
 }

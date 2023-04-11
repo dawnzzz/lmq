@@ -21,7 +21,7 @@ func TestLmqd(t *testing.T) {
 		return
 	}
 
-	topic.Close()
+	_ = topic.Close()
 
 	lmqd.Exit()
 }

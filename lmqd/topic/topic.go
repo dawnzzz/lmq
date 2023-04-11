@@ -2,7 +2,7 @@ package topic
 
 import (
 	"github.com/dawnzzz/lmq/iface"
-	"github.com/dawnzzz/lmq/lmqd/basestructure"
+	"github.com/dawnzzz/lmq/lmqd/channel"
 	"github.com/dawnzzz/lmq/logger"
 	"github.com/dawnzzz/lmq/pkg/e"
 	"strings"
@@ -184,7 +184,7 @@ func (topic *Topic) GetChannel(name string) iface.IChannel {
 		return t
 	}
 
-	c := basestructure.NewChannel(name)
+	c := channel.NewChannel(name)
 	c.Start()
 	topic.channels[name] = c
 
@@ -238,7 +238,7 @@ func (topic *Topic) DeleteExistingChannel(name string) error {
 	return nil
 }
 
-func (topic *Topic) Publish(message iface.IMessage) error {
+func (topic *Topic) PutMessage(message iface.IMessage) error {
 	//TODO implement me
 	panic("implement me")
 }
@@ -304,7 +304,7 @@ func (topic *Topic) messagePump() {
 
 		// TODO：向所有channel发送msg
 		for _, channel := range topic.channels {
-			_ = channel.Publish(msg)
+			_ = channel.PutMessage(msg)
 		}
 	}
 
