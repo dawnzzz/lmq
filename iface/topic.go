@@ -1,14 +1,13 @@
 package iface
 
 type ITopic interface {
-	Start()            // 开启topic
-	Pause()            // 暂停topic
-	UnPause()          // 恢复topic
-	Empty()            // 清空topic
-	Close()            // 关闭topic
-	Delete()           // 关闭并删除topic
-	GetStatus() uint32 // 获取状态
-	IsPausing() bool   // 返回是否处于暂停状态
+	Start()          // 开启topic
+	Pause() error    // 暂停topic
+	UnPause() error  // 恢复topic
+	Empty() error    // 清空topic
+	Close() error    // 关闭topic
+	Delete() error   // 关闭并删除topic
+	IsPausing() bool // 返回是否处于暂停状态
 
 	GetName() string                                  // 获取一个topic的name
 	GetChannel(name string) IChannel                  // 获取一个channel，如果没有就新建一个

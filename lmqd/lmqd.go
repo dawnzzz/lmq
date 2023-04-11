@@ -2,7 +2,7 @@ package lmqd
 
 import (
 	"github.com/dawnzzz/lmq/iface"
-	"github.com/dawnzzz/lmq/lmqd/basestructure"
+	"github.com/dawnzzz/lmq/lmqd/topic"
 	"github.com/dawnzzz/lmq/logger"
 	"github.com/dawnzzz/lmq/pkg/e"
 	"os"
@@ -94,7 +94,10 @@ func (lmqd *LmqDaemon) GetTopic(name string) iface.ITopic {
 		return t
 	}
 
-	t := basestructure.NewTopic(name)
+	deleteCallback := func(t iface.ITopic) {
+		_ = lmqd.DeleteExistingTopic(t.GetName())
+	}
+	t := topic.NewTopic(name, deleteCallback)
 	t.Start()
 	lmqd.topics[name] = t
 
