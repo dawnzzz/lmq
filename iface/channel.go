@@ -1,7 +1,6 @@
 package iface
 
 type IChannel interface {
-	Start()          // 开启channel
 	Pause() error    // 暂停channel
 	UnPause() error  // 恢复channel
 	Empty() error    // 清空channel

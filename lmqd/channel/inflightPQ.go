@@ -4,6 +4,10 @@ import "github.com/dawnzzz/lmq/iface"
 
 type inFlightPriQueue []iface.IMessage
 
+func newInFlightPriQueue(capacity int) inFlightPriQueue {
+	return make(inFlightPriQueue, 0, capacity)
+}
+
 func (queue inFlightPriQueue) Len() int {
 	return len(queue)
 }
