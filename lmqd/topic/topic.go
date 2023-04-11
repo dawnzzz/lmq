@@ -184,8 +184,10 @@ func (topic *Topic) GetChannel(name string) iface.IChannel {
 		return t
 	}
 
-	c := channel.NewChannel(name)
-	c.Start()
+	deleteCallback := func(channel iface.IChannel) {
+		_ = topic.DeleteExistingChannel(channel.GetName())
+	}
+	c := channel.NewChannel(topic.name, name, deleteCallback)
 	topic.channels[name] = c
 
 	return c

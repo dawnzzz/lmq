@@ -16,7 +16,7 @@ type Channel struct {
 
 	memoryMsgChan chan iface.IMessage // 内存chan
 
-	deleteCallback func(topic iface.ITopic)
+	deleteCallback func(topic iface.IChannel)
 	deleter        sync.Once
 
 	clients map[int64]Consumer
@@ -26,7 +26,7 @@ type Channel struct {
 	inFlightMessagesLock     sync.Mutex
 }
 
-func NewChannel(topicName, name string, deleteCallback func(topic iface.ITopic)) iface.IChannel {
+func NewChannel(topicName, name string, deleteCallback func(topic iface.IChannel)) iface.IChannel {
 	channel := &Channel{
 		topicName: topicName,
 		name:      name,
