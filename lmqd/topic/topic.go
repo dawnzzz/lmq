@@ -10,14 +10,6 @@ import (
 	"sync/atomic"
 )
 
-const (
-	starting = uint32(iota)
-	running
-	pausing
-	closing
-	Closed
-)
-
 type Topic struct {
 	name         string
 	isTemporary  bool                      // 标记是否是临时的topic
