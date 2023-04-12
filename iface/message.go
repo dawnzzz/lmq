@@ -1,7 +1,7 @@
 package iface
 
 const (
-	MsgIDLength = 16
+	MsgIDLength = 8
 )
 
 type MessageID [MsgIDLength]byte

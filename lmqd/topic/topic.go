@@ -1,6 +1,7 @@
 package topic
 
 import (
+	"encoding/binary"
 	"errors"
 	"github.com/dawnzzz/lmq/iface"
 	"github.com/dawnzzz/lmq/lmqd/channel"
@@ -19,6 +20,8 @@ type Topic struct {
 	isExiting    atomic.Bool               // 标记是否已经退出
 	channels     map[string]iface.IChannel // 保存所有的channel字典
 	channelsLock sync.RWMutex              // 控制对channel字典的互斥访问
+
+	guidFactory *GUIDFactory // message id 生成器
 
 	memoryMsgChan chan iface.IMessage // 内存chan
 
@@ -54,6 +57,9 @@ func NewTopic(name string, deleteCallback func(topic iface.ITopic)) iface.ITopic
 	if strings.HasSuffix(name, "#temp") {
 		topic.isTemporary = true
 	}
+
+	nodeID, _ := binary.Varint([]byte(topic.name))
+	topic.guidFactory = NewGUIDFactory(nodeID)
 
 	go topic.messagePump()
 
