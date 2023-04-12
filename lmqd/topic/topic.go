@@ -1,8 +1,10 @@
 package topic
 
 import (
+	"errors"
 	"github.com/dawnzzz/lmq/iface"
 	"github.com/dawnzzz/lmq/lmqd/channel"
+	"github.com/dawnzzz/lmq/lmqd/message"
 	"github.com/dawnzzz/lmq/logger"
 	"github.com/dawnzzz/lmq/pkg/e"
 	"strings"
@@ -28,6 +30,9 @@ type Topic struct {
 	pauseChan   chan struct{}
 	closingChan chan struct{}
 	closedChan  chan struct{}
+
+	messageCount atomic.Uint64
+	messageBytes atomic.Uint64
 }
 
 func NewTopic(name string, deleteCallback func(topic iface.ITopic)) iface.ITopic {
@@ -233,8 +238,23 @@ func (topic *Topic) DeleteExistingChannel(name string) error {
 }
 
 func (topic *Topic) PutMessage(message iface.IMessage) error {
-	//TODO implement me
-	panic("implement me")
+	topic.channelsLock.RLock()
+	defer topic.channelsLock.RUnlock()
+	if topic.isExiting.Load() {
+		return e.ErrTopicIsExiting
+	}
+
+	select {
+	case topic.memoryMsgChan <- message:
+	default:
+		// TODO:超出的消息先暂时丢弃
+		return errors.New("message is discarded")
+	}
+
+	topic.messageCount.Add(1)
+	topic.messageBytes.Add(uint64(len(message.GetData())))
+
+	return nil
 }
 
 func (topic *Topic) messagePump() {
@@ -297,8 +317,15 @@ func (topic *Topic) messagePump() {
 		}
 
 		// TODO：向所有channel发送msg
-		for _, channel := range topic.channels {
-			_ = channel.PutMessage(msg)
+		for i, channel := range channels {
+			var chanMsg iface.IMessage
+
+			if i > 0 {
+				chanMsg = message.NewMessage(msg.GetID(), msg.GetData())
+			} else {
+				chanMsg = msg
+			}
+			_ = channel.PutMessage(chanMsg)
 		}
 	}
 
