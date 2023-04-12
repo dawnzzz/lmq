@@ -11,6 +11,7 @@ type Message struct {
 	timestamp int64
 	attempts  uint16
 
+	// 优先队列中使用到的数据结构
 	clientID int64
 	pri      int64
 	index    int
@@ -42,12 +43,24 @@ func (msg *Message) GetAttempts() uint16 {
 	return msg.attempts
 }
 
+func (msg *Message) AddAttempts(delta uint16) {
+	msg.attempts += delta
+}
+
 func (msg *Message) GetPriority() int64 {
 	return msg.pri
 }
 
+func (msg *Message) SetPriority(pri int64) {
+	msg.pri = pri
+}
+
 func (msg *Message) GetClientID() int64 {
 	return msg.clientID
+}
+
+func (msg *Message) SetClientID(clientID int64) {
+	msg.clientID = clientID
 }
 
 func (msg *Message) GetIndex() int {
