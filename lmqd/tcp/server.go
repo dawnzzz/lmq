@@ -17,8 +17,8 @@ type TcpServer struct {
 func NewTcpServer(lmqDaemon iface.ILmqDaemon) *TcpServer {
 	server := hamble.NewServerWithOption(&conf.Profile{
 		Name:             "LMQD TCP Server",
-		Host:             "0.0.0.0",
-		Port:             6199,
+		Host:             config.GlobalLmqdConfig.TcpHost,
+		Port:             config.GlobalLmqdConfig.TcpPort,
 		TcpVersion:       "tcp4",
 		MaxConn:          config.GlobalLmqdConfig.TcpServerMaxConn,
 		MaxPacketSize:    uint32(config.GlobalLmqdConfig.MaxMessageSize + 8),
