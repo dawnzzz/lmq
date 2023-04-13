@@ -1,4 +1,4 @@
-package tcp
+package server
 
 import (
 	"encoding/json"

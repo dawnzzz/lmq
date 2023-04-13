@@ -1,6 +1,6 @@
-package channel
+package iface
 
-type Consumer interface {
+type IConsumer interface {
 	Pause()
 	UnPause()
 	Close() error

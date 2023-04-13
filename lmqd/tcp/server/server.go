@@ -1,4 +1,4 @@
-package tcp
+package server
 
 import (
 	"github.com/dawnzzz/hamble-tcp-server/conf"

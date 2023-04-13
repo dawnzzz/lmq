@@ -25,7 +25,7 @@ type Channel struct {
 	deleteCallback func(topic iface.IChannel)
 	deleter        sync.Once
 
-	clients map[int64]Consumer
+	clients map[int64]iface.IConsumer
 
 	inFlightMessages         map[iface.MessageID]iface.IMessage // 在给客户端发送过程中的message
 	inFlightMessagesPriQueue *inFlightPriQueue                  // 在给客户端发送过程中的message，优先队列
