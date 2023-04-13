@@ -162,6 +162,11 @@ func (topic *Topic) IsPausing() bool {
 	return topic.isPausing.Load()
 }
 
+// GenerateGUID 生成一个message ID
+func (topic *Topic) GenerateGUID() iface.MessageID {
+	return topic.guidFactory.NewMessageID()
+}
+
 // GetName 获取topic的名称
 func (topic *Topic) GetName() string {
 	return topic.name
