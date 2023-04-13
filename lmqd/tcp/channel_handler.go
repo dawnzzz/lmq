@@ -1,4 +1,4 @@
-package handler
+package tcp
 
 import (
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"

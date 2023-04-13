@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type Channel struct {
@@ -25,7 +26,7 @@ type Channel struct {
 	deleteCallback func(topic iface.IChannel)
 	deleter        sync.Once
 
-	clients map[int64]IConsumer
+	clients map[uint64]iface.IConsumer
 
 	inFlightMessages         map[iface.MessageID]iface.IMessage // 在给客户端发送过程中的message
 	inFlightMessagesPriQueue *inFlightPriQueue                  // 在给客户端发送过程中的message，优先队列
@@ -187,8 +188,61 @@ func (channel *Channel) put(message iface.IMessage) error {
 	return nil
 }
 
+// GetMemoryMsgChan 获取memoryMsgChan
+func (channel *Channel) GetMemoryMsgChan() chan iface.IMessage {
+	return channel.memoryMsgChan
+}
+
+// AddClient 为通道添加一个订阅的用户
+func (channel *Channel) AddClient(clientID uint64, client iface.IConsumer) error {
+	channel.exitLock.RLock()
+	defer channel.exitLock.RUnlock()
+
+	if channel.isExiting.Load() {
+		return e.ErrChannelIsExiting
+	}
+
+	channel.RLock()
+	_, ok := channel.clients[clientID]
+	channel.RUnlock()
+	if ok {
+		return nil
+	}
+
+	channel.Lock()
+	channel.clients[clientID] = client
+	channel.Unlock()
+
+	return nil
+}
+
+// RemoveClient 为channel移除一个用户
+func (channel *Channel) RemoveClient(clientID uint64) {
+	channel.exitLock.RLock()
+	defer channel.exitLock.RUnlock()
+
+	if channel.isExiting.Load() {
+		return
+	}
+
+	channel.RLock()
+	_, ok := channel.clients[clientID]
+	channel.RUnlock()
+	if !ok {
+		return
+	}
+
+	channel.Lock()
+	delete(channel.clients, clientID)
+	channel.Unlock()
+
+	if len(channel.clients) == 0 && channel.isTemporary {
+		go channel.deleter.Do(func() { channel.deleteCallback(channel) })
+	}
+}
+
 // FinishMessage 结束消息的投递
-func (channel *Channel) FinishMessage(clientID int64, messageID iface.MessageID) error {
+func (channel *Channel) FinishMessage(clientID uint64, messageID iface.MessageID) error {
 	// 将消息从inflight字典中删除
 	message, err := channel.popInFlightMessage(clientID, messageID)
 	if err != nil {
@@ -202,7 +256,7 @@ func (channel *Channel) FinishMessage(clientID int64, messageID iface.MessageID)
 }
 
 // RequeueMessage 将message重新入队发送
-func (channel *Channel) RequeueMessage(clientID int64, messageID iface.MessageID) error {
+func (channel *Channel) RequeueMessage(clientID uint64, messageID iface.MessageID) error {
 	// 首先从in-flight中移除
 	message, err := channel.popInFlightMessage(clientID, messageID)
 	if err != nil {
@@ -224,8 +278,38 @@ func (channel *Channel) RequeueMessage(clientID int64, messageID iface.MessageID
 	return err
 }
 
+func (channel *Channel) StartInFlightTimeout(message iface.IMessage, clientID uint64, timeout time.Duration) error {
+	now := time.Now()
+	message.SetClientID(clientID)
+	message.SetPriority(now.Add(timeout).UnixNano())
+	err := channel.pushInFlightMessage(message)
+	if err != nil {
+		return err
+	}
+	channel.addToInFlightPQ(message)
+	return nil
+}
+
+func (channel *Channel) pushInFlightMessage(message iface.IMessage) error {
+	channel.inFlightMessagesLock.Lock()
+	_, ok := channel.inFlightMessages[message.GetID()]
+	if ok {
+		channel.inFlightMessagesLock.Unlock()
+		return errors.New("ID already in flight")
+	}
+	channel.inFlightMessages[message.GetID()] = message
+	channel.inFlightMessagesLock.Unlock()
+	return nil
+}
+
+func (channel *Channel) addToInFlightPQ(message iface.IMessage) {
+	channel.inFlightMessagesLock.Lock()
+	channel.inFlightMessagesPriQueue.Push(message)
+	channel.inFlightMessagesLock.Unlock()
+}
+
 // popInFlightMessage 将一个消息从in flight字典中取出
-func (channel *Channel) popInFlightMessage(clientID int64, messageID iface.MessageID) (iface.IMessage, error) {
+func (channel *Channel) popInFlightMessage(clientID uint64, messageID iface.MessageID) (iface.IMessage, error) {
 	channel.inFlightMessagesLock.Lock()
 	msg, ok := channel.inFlightMessages[messageID]
 	if !ok {

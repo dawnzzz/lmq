@@ -1,6 +1,8 @@
-package handler
+package tcp
 
-import serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
+import (
+	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
+)
 
 /*
 	关于操作topic的handler

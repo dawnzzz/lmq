@@ -329,6 +329,9 @@ func (topic *Topic) messagePump() {
 		}
 
 		// TODO：向所有channel发送msg
+		if topic.isPausing.Load() {
+			continue
+		}
 		for i, channel := range channels {
 			var chanMsg iface.IMessage
 

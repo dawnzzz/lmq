@@ -1,6 +1,7 @@
 package lmqd
 
 import (
+	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
 	"github.com/dawnzzz/lmq/iface"
 	"github.com/dawnzzz/lmq/lmqd/tcp"
 	"github.com/dawnzzz/lmq/lmqd/topic"
@@ -21,6 +22,10 @@ const (
 
 // LmqDaemon lmqd
 type LmqDaemon struct {
+	clientIDMap      map[serveriface.IConnection]uint64 // 记录连接与client的映射关系
+	clientIDSequence uint64                             // 客户端ID
+	clientIDLock     sync.RWMutex
+
 	status     atomic.Uint32           // 当前运行状态：starting、running、closing
 	topics     map[string]iface.ITopic // 保存所有的topic字典
 	topicsLock sync.RWMutex            // 控制对topic字典的互斥访问
@@ -139,4 +144,24 @@ func (lmqd *LmqDaemon) DeleteExistingTopic(topicName string) error {
 	delete(lmqd.topics, t.GetName())
 
 	return nil
+}
+
+func (lmqd *LmqDaemon) GenerateClientID(conn serveriface.IConnection) uint64 {
+	lmqd.clientIDLock.RLock()
+	if clientID, ok := lmqd.clientIDMap[conn]; ok {
+		return clientID
+	}
+	lmqd.clientIDLock.RUnlock()
+
+	lmqd.clientIDLock.Lock()
+	defer lmqd.clientIDLock.Unlock()
+
+	if clientID, ok := lmqd.clientIDMap[conn]; ok {
+		return clientID
+	}
+
+	lmqd.clientIDSequence++
+	lmqd.clientIDMap[conn] = lmqd.clientIDSequence
+
+	return lmqd.clientIDSequence
 }

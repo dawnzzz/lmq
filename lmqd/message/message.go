@@ -12,7 +12,7 @@ type Message struct {
 	Attempts  uint16          `json:"Attempts"`
 
 	// 优先队列中使用到的数据结构
-	clientID int64
+	clientID uint64
 	pri      int64
 	index    int
 }
@@ -55,11 +55,11 @@ func (msg *Message) SetPriority(pri int64) {
 	msg.pri = pri
 }
 
-func (msg *Message) GetClientID() int64 {
+func (msg *Message) GetClientID() uint64 {
 	return msg.clientID
 }
 
-func (msg *Message) SetClientID(clientID int64) {
+func (msg *Message) SetClientID(clientID uint64) {
 	msg.clientID = clientID
 }
 

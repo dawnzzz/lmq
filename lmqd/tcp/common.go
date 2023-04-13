@@ -1,4 +1,4 @@
-package handler
+package tcp
 
 import (
 	"encoding/json"
@@ -34,9 +34,11 @@ type BaseHandler struct {
 }
 
 type RequestBody struct {
-	TopicName   string `json:"topic_name"`
-	ChannelName string `json:"channel_name"`
-	MessageData []byte `json:"message_data"`
+	TopicName   string          `json:"topic_name"`
+	ChannelName string          `json:"channel_name"`
+	MessageData []byte          `json:"message_data"`
+	Count       int64           `json:"count"`
+	MessageID   iface.MessageID `json:"message_id"`
 }
 
 func getRequestBody(request serveriface.IRequest) (*RequestBody, error) {
