@@ -3,6 +3,7 @@ package topic
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
 	"github.com/dawnzzz/lmq/lmqd/channel"
 	"github.com/dawnzzz/lmq/lmqd/message"
@@ -43,7 +44,7 @@ func NewTopic(name string, deleteCallback func(topic iface.ITopic)) iface.ITopic
 		name:     name,
 		channels: map[string]iface.IChannel{},
 
-		memoryMsgChan: make(chan iface.IMessage, 1024), // TODO：memory chan size 通过配置文件配置
+		memoryMsgChan: make(chan iface.IMessage, config.GlobalLmqdConfig.MemQueueSize),
 
 		deleteCallback: deleteCallback,
 

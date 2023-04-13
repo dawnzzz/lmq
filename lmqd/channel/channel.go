@@ -2,6 +2,7 @@ package channel
 
 import (
 	"errors"
+	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
 	"github.com/dawnzzz/lmq/pkg/e"
 	"strings"
@@ -39,7 +40,7 @@ func NewChannel(topicName, name string, deleteCallback func(topic iface.IChannel
 		topicName: topicName,
 		name:      name,
 
-		memoryMsgChan: make(chan iface.IMessage, 1024), // TODO：配置文件可定义
+		memoryMsgChan: make(chan iface.IMessage, config.GlobalLmqdConfig.MemQueueSize),
 
 		deleteCallback: deleteCallback,
 	}
