@@ -2,7 +2,7 @@ package lmqd
 
 import (
 	"github.com/dawnzzz/lmq/iface"
-	"github.com/dawnzzz/lmq/lmqd/tcp/server"
+	"github.com/dawnzzz/lmq/lmqd/tcp"
 	"github.com/dawnzzz/lmq/lmqd/topic"
 	"github.com/dawnzzz/lmq/logger"
 	"github.com/dawnzzz/lmq/pkg/e"
@@ -25,7 +25,7 @@ type LmqDaemon struct {
 	topics     map[string]iface.ITopic // 保存所有的topic字典
 	topicsLock sync.RWMutex            // 控制对topic字典的互斥访问
 
-	tcpServer *server.TcpServer
+	tcpServer *tcp.TcpServer
 
 	exitChan chan struct{}
 }
@@ -36,7 +36,7 @@ func NewLmqDaemon() iface.ILmqDaemon {
 
 		exitChan: make(chan struct{}, 1),
 	}
-	lmqd.tcpServer = server.NewTcpServer(lmqd)
+	lmqd.tcpServer = tcp.NewTcpServer(lmqd)
 	lmqd.status.Store(starting)
 
 	return lmqd

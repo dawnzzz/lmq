@@ -1,4 +1,4 @@
-package server
+package tcp
 
 import (
 	"github.com/dawnzzz/hamble-tcp-server/conf"
@@ -6,6 +6,7 @@ import (
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
 	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
+	"github.com/dawnzzz/lmq/lmqd/tcp/handler"
 )
 
 type TcpServer struct {
@@ -48,53 +49,53 @@ func (tcpServer *TcpServer) Stop() {
 }
 
 func registerHandler(server serveriface.IServer, lmqDaemon iface.ILmqDaemon) {
-	server.RegisterHandler(PubID, &PubHandler{BaseHandler{
-		lmqDaemon: lmqDaemon,
+	server.RegisterHandler(handler.PubID, &handler.PubHandler{handler.BaseHandler{
+		LmqDaemon: lmqDaemon,
 	}})
 
 	/*
 		Topic Handler
 	*/
-	server.RegisterHandler(CreateTopicID, &CreateChannelHandler{BaseHandler{
-		lmqDaemon: lmqDaemon,
+	server.RegisterHandler(handler.CreateTopicID, &handler.CreateChannelHandler{handler.BaseHandler{
+		LmqDaemon: lmqDaemon,
 	}})
 
-	server.RegisterHandler(DeleteTopicID, &DeleteTopicHandler{BaseHandler{
-		lmqDaemon: lmqDaemon,
+	server.RegisterHandler(handler.DeleteTopicID, &handler.DeleteTopicHandler{handler.BaseHandler{
+		LmqDaemon: lmqDaemon,
 	}})
 
-	server.RegisterHandler(EmptyTopicID, &EmptyTopicHandler{BaseHandler{
-		lmqDaemon: lmqDaemon,
+	server.RegisterHandler(handler.EmptyTopicID, &handler.EmptyTopicHandler{handler.BaseHandler{
+		LmqDaemon: lmqDaemon,
 	}})
 
-	server.RegisterHandler(PauseTopicID, &PauseTopicHandler{BaseHandler{
-		lmqDaemon: lmqDaemon,
+	server.RegisterHandler(handler.PauseTopicID, &handler.PauseTopicHandler{handler.BaseHandler{
+		LmqDaemon: lmqDaemon,
 	}})
 
-	server.RegisterHandler(UnPauseTopicID, &UnPauseTopicHandler{BaseHandler{
-		lmqDaemon: lmqDaemon,
+	server.RegisterHandler(handler.UnPauseTopicID, &handler.UnPauseTopicHandler{handler.BaseHandler{
+		LmqDaemon: lmqDaemon,
 	}})
 
 	/*
 		Channel Handler
 	*/
-	server.RegisterHandler(CreateChannelID, &CreateChannelHandler{BaseHandler{
-		lmqDaemon: lmqDaemon,
+	server.RegisterHandler(handler.CreateChannelID, &handler.CreateChannelHandler{handler.BaseHandler{
+		LmqDaemon: lmqDaemon,
 	}})
 
-	server.RegisterHandler(DeleteChannelID, &DeleteChannelHandler{BaseHandler{
-		lmqDaemon: lmqDaemon,
+	server.RegisterHandler(handler.DeleteChannelID, &handler.DeleteChannelHandler{handler.BaseHandler{
+		LmqDaemon: lmqDaemon,
 	}})
 
-	server.RegisterHandler(EmptyChannelID, &EmptyChannelHandler{BaseHandler{
-		lmqDaemon: lmqDaemon,
+	server.RegisterHandler(handler.EmptyChannelID, &handler.EmptyChannelHandler{handler.BaseHandler{
+		LmqDaemon: lmqDaemon,
 	}})
 
-	server.RegisterHandler(PauseChannelID, &PauseChannelHandler{BaseHandler{
-		lmqDaemon: lmqDaemon,
+	server.RegisterHandler(handler.PauseChannelID, &handler.PauseChannelHandler{handler.BaseHandler{
+		LmqDaemon: lmqDaemon,
 	}})
 
-	server.RegisterHandler(UnPauseChannelID, &UnPauseChannelHandler{BaseHandler{
-		lmqDaemon: lmqDaemon,
+	server.RegisterHandler(handler.UnPauseChannelID, &handler.UnPauseChannelHandler{handler.BaseHandler{
+		LmqDaemon: lmqDaemon,
 	}})
 }

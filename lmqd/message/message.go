@@ -6,10 +6,10 @@ import (
 )
 
 type Message struct {
-	id        iface.MessageID
-	data      []byte
-	timestamp int64
-	attempts  uint16
+	ID        iface.MessageID `json:"ID"`
+	Data      []byte          `json:"Data"`
+	Timestamp int64           `json:"Timestamp"`
+	Attempts  uint16          `json:"Attempts"`
 
 	// 优先队列中使用到的数据结构
 	clientID int64
@@ -19,32 +19,32 @@ type Message struct {
 
 func NewMessage(id iface.MessageID, data []byte) iface.IMessage {
 	msg := &Message{
-		id:        id,
-		data:      data,
-		timestamp: time.Now().UnixNano(),
+		ID:        id,
+		Data:      data,
+		Timestamp: time.Now().UnixNano(),
 	}
 
 	return msg
 }
 
 func (msg *Message) GetID() iface.MessageID {
-	return msg.id
+	return msg.ID
 }
 
 func (msg *Message) GetData() []byte {
-	return msg.data
+	return msg.Data
 }
 
 func (msg *Message) GetTimestamp() int64 {
-	return msg.timestamp
+	return msg.Timestamp
 }
 
 func (msg *Message) GetAttempts() uint16 {
-	return msg.attempts
+	return msg.Attempts
 }
 
 func (msg *Message) AddAttempts(delta uint16) {
-	msg.attempts += delta
+	msg.Attempts += delta
 }
 
 func (msg *Message) GetPriority() int64 {
