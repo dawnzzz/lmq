@@ -48,6 +48,10 @@ func (tcpServer *TcpServer) Stop() {
 }
 
 func registerHandler(server serveriface.IServer, lmqDaemon iface.ILmqDaemon) {
+	server.RegisterHandler(PubID, &PubHandler{BaseHandler{
+		lmqDaemon: lmqDaemon,
+	}})
+
 	/*
 		Topic Handler
 	*/
