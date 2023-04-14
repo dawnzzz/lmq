@@ -3,10 +3,10 @@ package tcp
 import (
 	"encoding/json"
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
+	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
 	"sync"
 	"sync/atomic"
-	"time"
 )
 
 const (
@@ -94,9 +94,17 @@ func (tcpClient *TcpClient) Empty() {
 	panic("implement me")
 }
 
+func (tcpClient *TcpClient) tryUpdateReady() {
+	select {
+	case tcpClient.updateReadyChan <- struct{}{}:
+	default:
+
+	}
+}
+
 func (tcpClient *TcpClient) UpdateReady(readyCount int64) {
 	tcpClient.ReadyCount.Store(readyCount)
-	tcpClient.updateReadyChan <- struct{}{}
+	tcpClient.tryUpdateReady()
 }
 
 // IsReadyRecv 客户端是否已经可以接收消息
@@ -147,6 +155,11 @@ func (tcpClient *TcpClient) IsReadySub() bool {
 	return true
 }
 
+func (tcpClient *TcpClient) TimeoutMessage() {
+	tcpClient.InFlightCount.Add(-1)
+	tcpClient.tryUpdateReady()
+}
+
 // SendMessage 向客户端发送消息
 func (tcpClient *TcpClient) sendMessage(message iface.IMessage) error {
 	tcpClient.InFlightCount.Add(1)
@@ -181,7 +194,7 @@ func (tcpClient *TcpClient) messagePump() {
 			// 向客户端发送消息
 			msg.AddAttempts(1)
 
-			_ = subChannel.StartInFlightTimeout(msg, tcpClient.ID, time.Second*3) // TODO:timeout时间可定义
+			_ = subChannel.StartInFlightTimeout(msg, tcpClient.ID, config.GlobalLmqdConfig.MessageTimeout)
 			err := tcpClient.sendMessage(msg)
 			if err != nil {
 				goto Exit

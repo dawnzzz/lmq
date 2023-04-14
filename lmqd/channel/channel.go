@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
+	"github.com/dawnzzz/lmq/logger"
 	"github.com/dawnzzz/lmq/pkg/e"
 	"strings"
 	"sync"
@@ -34,6 +35,7 @@ type Channel struct {
 
 	messageCount atomic.Uint64 // 消息数量
 	requeueCount atomic.Uint64 // 重新入队的消息数量
+	timeoutCount atomic.Uint64 // 超时消息的数量
 }
 
 func NewChannel(topicName, name string, deleteCallback func(topic iface.IChannel)) iface.IChannel {
@@ -52,11 +54,13 @@ func NewChannel(topicName, name string, deleteCallback func(topic iface.IChannel
 	// 初始化优先队列
 	channel.initPQ()
 
+	go channel.queueScanWorker()
+
 	return channel
 }
 
 func (channel *Channel) initPQ() {
-	priQueueSize := 1024 / 10 // TODO：配置文件可定义
+	priQueueSize := config.GlobalLmqdConfig.MemQueueSize / 10
 
 	channel.inFlightMessagesLock.Lock()
 	channel.inFlightMessages = map[iface.MessageID]iface.IMessage{}
@@ -339,4 +343,58 @@ func (channel *Channel) removeFromInFlightPriQueue(message iface.IMessage) {
 
 	channel.inFlightMessagesPriQueue.Remove(message.GetIndex())
 	channel.inFlightMessagesLock.Unlock()
+}
+
+// 扫描队列，处理超时消息
+func (channel *Channel) queueScanWorker() {
+	ticker := time.NewTicker(config.GlobalLmqdConfig.ScanQueueInterval)
+	for {
+		select {
+		case <-ticker.C:
+			// 处理 in-flight 的超时消息
+			go channel.processInFlightQueue()
+		}
+
+		if channel.isExiting.Load() {
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+func (channel *Channel) processInFlightQueue() {
+	channel.exitLock.RLock()
+	channel.exitLock.RUnlock()
+
+	if channel.isExiting.Load() {
+		return
+	}
+
+	now := time.Now().UnixNano()
+	for {
+		channel.inFlightMessagesLock.Lock()
+		msg := channel.inFlightMessagesPriQueue.PeekAndShift(now)
+		channel.inFlightMessagesLock.Unlock()
+
+		if msg == nil {
+			return
+		}
+
+		_, err := channel.popInFlightMessage(msg.GetClientID(), msg.GetID())
+		if err != nil {
+			return
+		}
+
+		channel.timeoutCount.Add(1)
+
+		channel.RLock()
+		client, ok := channel.clients[msg.GetClientID()]
+		if ok {
+			client.TimeoutMessage()
+		}
+		channel.RUnlock()
+
+		logger.Infof("message id = %v timeout, now requeue", msg.GetID())
+		_ = channel.put(msg)
+	}
 }

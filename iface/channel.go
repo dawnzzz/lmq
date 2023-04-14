@@ -30,4 +30,5 @@ type IConsumer interface {
 	UnPause()
 	Close() error
 	Empty()
+	TimeoutMessage()
 }

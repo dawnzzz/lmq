@@ -1,5 +1,7 @@
 package config
 
+import "time"
+
 var GlobalLmqdConfig *LmqdConfig
 
 type LmqdConfig struct {
@@ -18,6 +20,9 @@ type LmqdConfig struct {
 	TLSPort     int
 	TLSCertFile string // TLS证书文件
 	TLSKeyFile  string // TLS密钥文件
+
+	MessageTimeout    time.Duration
+	ScanQueueInterval time.Duration
 }
 
 func init() {
@@ -34,5 +39,8 @@ func init() {
 		TLSPort:                   6201,
 		TLSCertFile:               "",
 		TLSKeyFile:                "",
+
+		MessageTimeout:    5 * time.Second,
+		ScanQueueInterval: 100 * time.Millisecond,
 	}
 }

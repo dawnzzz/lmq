@@ -42,6 +42,20 @@ func (inflight *inFlightPriQueue) Remove(i int) iface.IMessage {
 	return msg
 }
 
+func (inflight *inFlightPriQueue) PeekAndShift(max int64) iface.IMessage {
+	if len(inflight.internal) == 0 {
+		return nil
+	}
+
+	x := inflight.internal[0]
+	if x.GetPriority() > max {
+		return nil
+	}
+	inflight.Pop()
+
+	return x
+}
+
 /*
 internalInFlightPriQueue 实现了heap.Interface接口
 */
