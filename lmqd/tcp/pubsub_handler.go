@@ -20,19 +20,19 @@ func (handler *PubHandler) Handle(request serveriface.IRequest) {
 	// 获取client
 	client, _, err := getClient(handler.tcpServer, request)
 	if err != nil {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	if !client.IsReadyPub() {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte("not ready for pub"))
+		_ = handler.SendErrResponse(request, errors.New("not ready for pub"))
 		return
 	}
 
 	// 反序列化，获取topic name
 	requestBody, err := getRequestBody(request)
 	if err != nil {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
@@ -45,12 +45,12 @@ func (handler *PubHandler) Handle(request serveriface.IRequest) {
 	// 发布消息
 	err = topic.PutMessage(msg)
 	if err != nil {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	client.MessageCount.Add(1)
-	_ = request.GetConnection().SendBufMsg(OkID, []byte("OK"))
+	_ = handler.SendOkResponse(request)
 }
 
 // SubHandler 订阅一个topic、channel
@@ -63,19 +63,19 @@ func (handler *SubHandler) Handle(request serveriface.IRequest) {
 	// 获取client
 	client, clientID, err := getClient(handler.tcpServer, request)
 	if err != nil {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	if !client.IsReadySub() {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte("not ready for sub"))
+		_ = handler.SendErrResponse(request, errors.New("not ready for sub"))
 		return
 	}
 
 	// 反序列化，获取topic name
 	requestBody, err := getRequestBody(request)
 	if err != nil {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
@@ -88,7 +88,7 @@ func (handler *SubHandler) Handle(request serveriface.IRequest) {
 	// 将用户添加到channel的用户组中
 	err = c.AddClient(clientID, client)
 	if err != nil {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
@@ -96,7 +96,7 @@ func (handler *SubHandler) Handle(request serveriface.IRequest) {
 	client.Status.Store(statusSubscribed)
 	go client.messagePump()
 
-	_ = request.GetConnection().SendBufMsg(OkID, []byte("OK"))
+	_ = handler.SendOkResponse(request)
 }
 
 func getClient(tcpServer *TcpServer, request serveriface.IRequest) (*TcpClient, uint64, error) {

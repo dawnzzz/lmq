@@ -117,6 +117,7 @@ func registerHandler(tcpServer *TcpServer, server serveriface.IServer, lmqDaemon
 	server.RegisterHandler(PubID, &PubHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    PubID,
 		},
 		tcpServer: tcpServer,
 	})
@@ -124,6 +125,7 @@ func registerHandler(tcpServer *TcpServer, server serveriface.IServer, lmqDaemon
 	server.RegisterHandler(SubID, &SubHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    SubID,
 		},
 		tcpServer: tcpServer,
 	})
@@ -134,49 +136,59 @@ func registerHandler(tcpServer *TcpServer, server serveriface.IServer, lmqDaemon
 	server.RegisterHandler(RydID, &RydHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    RydID,
 		},
 	})
 
 	server.RegisterHandler(FinID, &FinHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    FinID,
 		},
 	})
 
 	server.RegisterHandler(ReqID, &ReqHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    ReqID,
 		},
 	})
 
 	/*
 		Topic Handler
 	*/
-	server.RegisterHandler(CreateTopicID, &CreateChannelHandler{BaseHandler: BaseHandler{
-		LmqDaemon: lmqDaemon,
-	}})
+	server.RegisterHandler(CreateTopicID, &CreateChannelHandler{
+		BaseHandler: BaseHandler{
+			LmqDaemon: lmqDaemon,
+			TaskID:    CreateTopicID,
+		},
+	})
 
 	server.RegisterHandler(DeleteTopicID, &DeleteTopicHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    DeleteTopicID,
 		},
 	})
 
 	server.RegisterHandler(EmptyTopicID, &EmptyTopicHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    EmptyTopicID,
 		},
 	})
 
 	server.RegisterHandler(PauseTopicID, &PauseTopicHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    PauseTopicID,
 		},
 	})
 
 	server.RegisterHandler(UnPauseTopicID, &UnPauseTopicHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    UnPauseTopicID,
 		},
 	})
 
@@ -186,30 +198,35 @@ func registerHandler(tcpServer *TcpServer, server serveriface.IServer, lmqDaemon
 	server.RegisterHandler(CreateChannelID, &CreateChannelHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    CreateChannelID,
 		},
 	})
 
 	server.RegisterHandler(DeleteChannelID, &DeleteChannelHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    DeleteChannelID,
 		},
 	})
 
 	server.RegisterHandler(EmptyChannelID, &EmptyChannelHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    EmptyChannelID,
 		},
 	})
 
 	server.RegisterHandler(PauseChannelID, &PauseChannelHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    PauseChannelID,
 		},
 	})
 
 	server.RegisterHandler(UnPauseChannelID, &UnPauseChannelHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
+			TaskID:    UnPauseChannelID,
 		},
 	})
 }

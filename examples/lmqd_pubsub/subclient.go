@@ -12,8 +12,8 @@ func main() {
 	if err != nil {
 		return
 	}
-	client.RegisterHandler(tcp.OkID, &handler.OkHandler{})
-	client.RegisterHandler(tcp.ErrID, &handler.ErrHandler{})
+	client.RegisterHandler(tcp.SubID, &handler.RecvHandler{})
+	client.RegisterHandler(tcp.RydID, &handler.RecvHandler{})
 	client.RegisterHandler(tcp.SendMsgID, &handler.RecvMessageHandler{})
 
 	go client.Start()

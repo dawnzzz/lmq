@@ -9,20 +9,15 @@ import (
 	"github.com/dawnzzz/lmq/lmqd/tcp"
 )
 
-type OkHandler struct {
+type RecvHandler struct {
 	hamble.BaseHandler
 }
 
-func (h *OkHandler) Handle(response iface.IRequest) {
-	fmt.Printf("recv:%s\n", response.GetData())
-}
-
-type ErrHandler struct {
-	hamble.BaseHandler
-}
-
-func (h *ErrHandler) Handle(response iface.IRequest) {
-	fmt.Printf("recv:%s\n", response.GetData())
+func (h *RecvHandler) Handle(response iface.IRequest) {
+	data := response.GetData()
+	resp := &tcp.ResponseBody{}
+	_ = json.Unmarshal(data, resp)
+	fmt.Printf("recv:%#v\n", resp)
 }
 
 type RecvMessageHandler struct {
@@ -31,13 +26,14 @@ type RecvMessageHandler struct {
 
 func (h *RecvMessageHandler) Handle(response iface.IRequest) {
 	data := response.GetData()
-	msg := &message.Message{}
-	_ = json.Unmarshal(data, msg)
-	fmt.Printf("recv msg:%#s\n", msg.Data)
+	resp := &tcp.ResponseBody{Message: &message.Message{}}
+	_ = json.Unmarshal(data, resp)
+	fmt.Printf("recv msg:%s\n", resp.Message.GetData())
 
-	resp, _ := json.Marshal(tcp.RequestBody{
-		MessageID: msg.ID,
+	msg := resp.Message
+	msgResp, _ := json.Marshal(tcp.RequestBody{
+		MessageID: msg.GetID(),
 	})
 
-	_ = response.GetConnection().SendBufMsg(tcp.FinID, resp)
+	_ = response.GetConnection().SendBufMsg(tcp.FinID, msgResp)
 }

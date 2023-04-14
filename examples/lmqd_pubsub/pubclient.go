@@ -14,8 +14,8 @@ func main() {
 		return
 	}
 
-	client.RegisterHandler(tcp.OkID, &handler.OkHandler{})
-	client.RegisterHandler(tcp.ErrID, &handler.ErrHandler{})
+	client.RegisterHandler(tcp.CreateChannelID, &handler.RecvHandler{})
+	client.RegisterHandler(tcp.PubID, &handler.RecvHandler{})
 
 	go client.Start()
 

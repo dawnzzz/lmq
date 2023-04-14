@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"errors"
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
 )
 
@@ -12,21 +13,21 @@ func (handler *RydHandler) Handle(request serveriface.IRequest) {
 	// 反序列化，获取count
 	requestBody, err := getRequestBody(request)
 	if err != nil {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	raw := request.GetConnection().GetProperty("client")
 	client, ok := raw.(*TcpClient)
 	if !ok {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte("server internal error"))
+		_ = handler.SendErrResponse(request, errors.New("server internal error"))
 		return
 	}
 
 	count := requestBody.Count
 	client.UpdateReady(count)
 
-	_ = request.GetConnection().SendBufMsg(OkID, []byte("OK"))
+	_ = handler.SendOkResponse(request)
 }
 
 type FinHandler struct {
@@ -37,32 +38,32 @@ func (handler *FinHandler) Handle(request serveriface.IRequest) {
 	// 反序列化，获取message id
 	requestBody, err := getRequestBody(request)
 	if err != nil {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	raw := request.GetConnection().GetProperty("client")
 	client, ok := raw.(*TcpClient)
 	if !ok {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte("server internal error"))
+		_ = handler.SendErrResponse(request, errors.New("server internal error"))
 		return
 	}
 
 	rawID := request.GetConnection().GetProperty("clientID")
 	clientID, ok := rawID.(uint64)
 	if !ok {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte("server internal error"))
+		_ = handler.SendErrResponse(request, errors.New("server internal error"))
 		return
 	}
 
 	err = client.channel.FinishMessage(clientID, requestBody.MessageID)
 	if err != nil {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 	client.InFlightCount.Add(-1)
 
-	_ = request.GetConnection().SendBufMsg(OkID, []byte("OK"))
+	_ = handler.SendOkResponse(request)
 }
 
 type ReqHandler struct {
@@ -73,30 +74,30 @@ func (handler *ReqHandler) Handle(request serveriface.IRequest) {
 	// 反序列化，获取message id
 	requestBody, err := getRequestBody(request)
 	if err != nil {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	raw := request.GetConnection().GetProperty("client")
 	client, ok := raw.(*TcpClient)
 	if !ok {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte("server internal error"))
+		_ = handler.SendErrResponse(request, errors.New("server internal error"))
 		return
 	}
 
 	rawID := request.GetConnection().GetProperty("clientID")
 	clientID, ok := rawID.(uint64)
 	if !ok {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte("server internal error"))
+		_ = handler.SendErrResponse(request, errors.New("server internal error"))
 		return
 	}
 
 	err = client.channel.RequeueMessage(clientID, requestBody.MessageID)
 	if err != nil {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 	client.RequeueCount.Add(1)
 
-	_ = request.GetConnection().SendBufMsg(OkID, []byte("OK"))
+	_ = handler.SendOkResponse(request)
 }

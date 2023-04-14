@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"encoding/json"
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
 	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
@@ -166,7 +165,7 @@ func (tcpClient *TcpClient) TimeoutMessage() {
 func (tcpClient *TcpClient) sendMessage(message iface.IMessage) error {
 	tcpClient.InFlightCount.Add(1)
 
-	data, _ := json.Marshal(message)
+	data := makeResponse(SendMsgID, message, nil)
 	err := tcpClient.connection.SendBufMsg(SendMsgID, data)
 	if err != nil {
 		return err
