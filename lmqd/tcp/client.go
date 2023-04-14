@@ -29,7 +29,8 @@ type TcpClient struct {
 	RequeueCount  atomic.Int64 // requeue消息数量
 	MessageCount  atomic.Int64 // 发布消息的数量
 
-	closingChan chan struct{}
+	updateReadyChan chan struct{}
+	closingChan     chan struct{}
 }
 
 // 对象池
@@ -44,6 +45,7 @@ func NewTcpClient(id uint64, conn serveriface.IConnection) *TcpClient {
 	client.connection = conn
 	client.Status.Store(statusInit)
 	client.closingChan = make(chan struct{})
+	client.updateReadyChan = make(chan struct{}, 1)
 
 	return client
 }
@@ -63,6 +65,7 @@ func DestroyTcpClient(client *TcpClient) {
 	client.MessageCount.Store(0)
 
 	client.closingChan = nil
+	client.updateReadyChan = nil
 
 	clientPool.Put(client)
 }
@@ -89,6 +92,11 @@ func (tcpClient *TcpClient) Close() error {
 func (tcpClient *TcpClient) Empty() {
 	//TODO implement me
 	panic("implement me")
+}
+
+func (tcpClient *TcpClient) UpdateReady(readyCount int64) {
+	tcpClient.ReadyCount.Store(readyCount)
+	tcpClient.updateReadyChan <- struct{}{}
 }
 
 // IsReadyRecv 客户端是否已经可以接收消息
@@ -178,6 +186,8 @@ func (tcpClient *TcpClient) messagePump() {
 			if err != nil {
 				goto Exit
 			}
+		case <-tcpClient.updateReadyChan:
+			continue
 		}
 	}
 

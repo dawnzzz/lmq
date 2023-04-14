@@ -24,7 +24,7 @@ func (handler *RydHandler) Handle(request serveriface.IRequest) {
 	}
 
 	count := requestBody.Count
-	client.ReadyCount.Store(count)
+	client.UpdateReady(count)
 
 	_ = request.GetConnection().SendBufMsg(OkID, []byte("OK"))
 }

@@ -19,14 +19,15 @@ func main() {
 	go client.Start()
 
 	data, _ := json.Marshal(tcp.RequestBody{
-		Count: 10,
-	})
-	_ = client.GetConnection().SendBufMsg(tcp.RydID, data)
-	data, _ = json.Marshal(tcp.RequestBody{
 		TopicName:   "test_topic",
 		ChannelName: "test_channel",
 	})
 	_ = client.GetConnection().SendBufMsg(tcp.SubID, data)
+
+	data, _ = json.Marshal(tcp.RequestBody{
+		Count: 10,
+	})
+	_ = client.GetConnection().SendBufMsg(tcp.RydID, data)
 
 	select {}
 }
