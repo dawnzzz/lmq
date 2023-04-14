@@ -103,8 +103,10 @@ func (tcpClient *TcpClient) tryUpdateReady() {
 }
 
 func (tcpClient *TcpClient) UpdateReady(readyCount int64) {
-	tcpClient.ReadyCount.Store(readyCount)
-	tcpClient.tryUpdateReady()
+	old := tcpClient.ReadyCount.Swap(readyCount)
+	if old != readyCount {
+		tcpClient.tryUpdateReady()
+	}
 }
 
 // IsReadyRecv 客户端是否已经可以接收消息
@@ -170,7 +172,6 @@ func (tcpClient *TcpClient) sendMessage(message iface.IMessage) error {
 		return err
 	}
 
-	tcpClient.ReadyCount.Add(-1)
 	return nil
 }
 
