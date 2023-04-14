@@ -43,6 +43,8 @@ func NewChannel(topicName, name string, deleteCallback func(topic iface.IChannel
 
 		memoryMsgChan: make(chan iface.IMessage, config.GlobalLmqdConfig.MemQueueSize),
 
+		clients: map[uint64]iface.IConsumer{},
+
 		deleteCallback: deleteCallback,
 	}
 	channel.isTemporary = strings.HasSuffix(channel.name, "#temp")
