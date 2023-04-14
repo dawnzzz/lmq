@@ -37,6 +37,8 @@ type LmqDaemon struct {
 
 func NewLmqDaemon() iface.ILmqDaemon {
 	lmqd := &LmqDaemon{
+		clientIDMap: make(map[serveriface.IConnection]uint64),
+
 		topics: map[string]iface.ITopic{},
 
 		exitChan: make(chan struct{}, 1),
