@@ -6,12 +6,17 @@ import (
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
 	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
+	"github.com/dawnzzz/lmq/logger"
 	"sync"
+	"sync/atomic"
 )
 
 type TcpServer struct {
 	lmqDaemon iface.ILmqDaemon
 	server    serveriface.IServer
+
+	IsClosing atomic.Bool
+	ExitChan  chan struct{}
 
 	clientMap     map[uint64]*TcpClient
 	clientMapLock sync.RWMutex
@@ -39,30 +44,39 @@ func NewTcpServer(lmqDaemon iface.ILmqDaemon) *TcpServer {
 	tcpServer := &TcpServer{
 		lmqDaemon: lmqDaemon,
 		server:    server,
+
+		clientMap: make(map[uint64]*TcpClient),
+
+		ExitChan: make(chan struct{}),
 	}
 
 	registerHandler(tcpServer, server, lmqDaemon)
 
 	// 连接开始时的Hook函数
 	server.SetOnConnStart(func(conn serveriface.IConnection) {
+		logger.Infof("on conn start hook func from %s", conn.RemoteAddr())
 		// 连接开始时记录客户端状态
 		clientID := lmqDaemon.GenerateClientID(conn)
-		tcpServer.clientMapLock.Lock()
 		tcpClient := NewTcpClient(clientID, conn)
+
+		tcpServer.clientMapLock.Lock()
+		logger.Infof("clientID=%v", clientID)
 		tcpServer.clientMap[clientID] = tcpClient
+		tcpServer.clientMapLock.Unlock()
+
 		conn.SetProperty("clientID", clientID)
 		conn.SetProperty("client", tcpClient)
 	})
 
 	// 连接结束时的hook函数
 	server.SetOnConnStop(func(conn serveriface.IConnection) {
+		logger.Infof("on conn stop hook func from %s", conn.RemoteAddr())
 		// 连接结束时销毁TcpClient对象
 		// 获取clientID
 		raw := conn.GetProperty("clientID")
 		clientID, _ := raw.(uint64)
 
 		// 获取TcpClient对象
-		tcpServer.clientMapLock.Lock()
 		client, ok := tcpServer.clientMap[clientID]
 		if !ok {
 			return
@@ -70,7 +84,9 @@ func NewTcpServer(lmqDaemon iface.ILmqDaemon) *TcpServer {
 
 		_ = client.Close()
 		// 从订阅的channel中移除该对象
-		client.channel.RemoveClient(clientID)
+		if client.channel != nil {
+			client.channel.RemoveClient(clientID)
+		}
 
 		// 销毁对象
 		DestroyTcpClient(client)
@@ -81,13 +97,23 @@ func NewTcpServer(lmqDaemon iface.ILmqDaemon) *TcpServer {
 
 func (tcpServer *TcpServer) Start() {
 	tcpServer.server.Start()
+
+	tcpServer.server.Stop()
 }
 
 func (tcpServer *TcpServer) Stop() {
+	if tcpServer.IsClosing.Load() {
+		return
+	}
+
+	close(tcpServer.ExitChan)
 	tcpServer.server.Stop()
 }
 
 func registerHandler(tcpServer *TcpServer, server serveriface.IServer, lmqDaemon iface.ILmqDaemon) {
+	/*
+		Pub and Sub
+	*/
 	server.RegisterHandler(PubID, &PubHandler{
 		BaseHandler: BaseHandler{
 			LmqDaemon: lmqDaemon,
@@ -100,6 +126,27 @@ func registerHandler(tcpServer *TcpServer, server serveriface.IServer, lmqDaemon
 			LmqDaemon: lmqDaemon,
 		},
 		tcpServer: tcpServer,
+	})
+
+	/*
+		protocol
+	*/
+	server.RegisterHandler(RydID, &RydHandler{
+		BaseHandler: BaseHandler{
+			LmqDaemon: lmqDaemon,
+		},
+	})
+
+	server.RegisterHandler(FinID, &FinHandler{
+		BaseHandler: BaseHandler{
+			LmqDaemon: lmqDaemon,
+		},
+	})
+
+	server.RegisterHandler(ReqID, &ReqHandler{
+		BaseHandler: BaseHandler{
+			LmqDaemon: lmqDaemon,
+		},
 	})
 
 	/*

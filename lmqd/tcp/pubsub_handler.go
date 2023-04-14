@@ -80,18 +80,10 @@ func (handler *SubHandler) Handle(request serveriface.IRequest) {
 	}
 
 	// 获取topic
-	topic, err := handler.LmqDaemon.GetExistingTopic(requestBody.TopicName)
-	if err != nil {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
-		return
-	}
+	topic := handler.LmqDaemon.GetTopic(requestBody.TopicName)
 
 	// 获取channel
-	c, err := topic.GetExistingChannel(requestBody.ChannelName)
-	if err != nil {
-		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
-		return
-	}
+	c := topic.GetChannel(requestBody.ChannelName)
 
 	// 将用户添加到channel的用户组中
 	err = c.AddClient(clientID, client)
@@ -99,6 +91,10 @@ func (handler *SubHandler) Handle(request serveriface.IRequest) {
 		_ = request.GetConnection().SendBufMsg(ErrID, []byte(err.Error()))
 		return
 	}
+
+	client.channel = c
+	client.Status.Store(statusSubscribed)
+	go client.messagePump()
 
 	_ = request.GetConnection().SendBufMsg(OkID, []byte("OK"))
 }

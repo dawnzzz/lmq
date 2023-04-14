@@ -151,6 +151,7 @@ func (lmqd *LmqDaemon) DeleteExistingTopic(topicName string) error {
 func (lmqd *LmqDaemon) GenerateClientID(conn serveriface.IConnection) uint64 {
 	lmqd.clientIDLock.RLock()
 	if clientID, ok := lmqd.clientIDMap[conn]; ok {
+		lmqd.clientIDLock.RUnlock()
 		return clientID
 	}
 	lmqd.clientIDLock.RUnlock()

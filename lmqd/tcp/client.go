@@ -12,7 +12,6 @@ import (
 const (
 	statusInit = uint32(iota)
 	statusSubscribed
-	statusPublishing
 	statusClosing
 )
 
@@ -45,8 +44,6 @@ func NewTcpClient(id uint64, conn serveriface.IConnection) *TcpClient {
 	client.connection = conn
 	client.Status.Store(statusInit)
 	client.closingChan = make(chan struct{})
-
-	go client.messagePump()
 
 	return client
 }
@@ -109,7 +106,7 @@ func (tcpClient *TcpClient) IsReadyRecv() bool {
 		return false
 	}
 
-	if tcpClient.ReadyCount.Load() == 0 || tcpClient.InFlightCount.Load() >= tcpClient.RequeueCount.Load() {
+	if tcpClient.ReadyCount.Load() == 0 || tcpClient.InFlightCount.Load() >= tcpClient.ReadyCount.Load() {
 		return false
 	}
 
@@ -122,7 +119,7 @@ func (tcpClient *TcpClient) IsReadyPub() bool {
 		return false
 	}
 
-	if tcpClient.Status.Load() != statusInit || tcpClient.Status.Load() != statusPublishing {
+	if tcpClient.Status.Load() != statusInit {
 		return false
 	}
 
@@ -186,6 +183,5 @@ func (tcpClient *TcpClient) messagePump() {
 
 Exit:
 	tcpClient.Close()
-	tcpClient.connection.Stop()
 	return
 }
