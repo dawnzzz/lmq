@@ -48,11 +48,11 @@ func NewTopic(name string, deleteCallback func(topic iface.ITopic)) iface.ITopic
 
 		deleteCallback: deleteCallback,
 
-		startChan:   make(chan struct{}),
-		updateChan:  make(chan struct{}),
-		pauseChan:   make(chan struct{}),
-		closingChan: make(chan struct{}),
-		closedChan:  make(chan struct{}),
+		startChan:   make(chan struct{}, 1),
+		updateChan:  make(chan struct{}, 1),
+		pauseChan:   make(chan struct{}, 1),
+		closingChan: make(chan struct{}, 1),
+		closedChan:  make(chan struct{}, 1),
 	}
 
 	if strings.HasSuffix(name, "#temp") {
@@ -198,6 +198,7 @@ func (topic *Topic) GetChannel(name string) iface.IChannel {
 	}
 	c := channel.NewChannel(topic.name, name, deleteCallback)
 	topic.channels[name] = c
+	topic.updateChan <- struct{}{}
 
 	return c
 }
