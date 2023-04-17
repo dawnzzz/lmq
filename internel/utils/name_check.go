@@ -3,7 +3,7 @@ package utils
 import "regexp"
 
 const (
-	TopicOrChannelNameMinLen = 60
+	TopicOrChannelNameMinLen = 0
 	TopicOrChannelNameMaxLen = 60
 )
 
