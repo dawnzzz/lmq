@@ -91,7 +91,11 @@ func (handler *SubHandler) Handle(request serveriface.IRequest) {
 	}
 
 	// 获取channel
-	c := topic.GetChannel(requestBody.ChannelName)
+	c, err := topic.GetChannel(requestBody.ChannelName)
+	if err != nil {
+		_ = handler.SendErrResponse(request, err)
+		return
+	}
 
 	// 将用户添加到channel的用户组中
 	err = c.AddClient(clientID, client)

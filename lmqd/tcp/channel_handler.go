@@ -27,7 +27,11 @@ func (handler *CreateChannelHandler) Handle(request serveriface.IRequest) {
 		_ = handler.SendErrResponse(request, err)
 		return
 	}
-	topic.GetChannel(requestBody.ChannelName)
+	_, err = topic.GetChannel(requestBody.ChannelName)
+	if err != nil {
+		_ = handler.SendErrResponse(request, err)
+		return
+	}
 
 	_ = handler.SendOkResponse(request)
 }

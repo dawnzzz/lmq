@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
+	"github.com/dawnzzz/lmq/internel/utils"
 	"github.com/dawnzzz/lmq/lmqd/backendqueue"
 	"github.com/dawnzzz/lmq/lmqd/channel"
 	"github.com/dawnzzz/lmq/lmqd/message"
@@ -130,7 +131,7 @@ func (topic *Topic) exit(deleted bool) error {
 		topic.channelsLock.Lock()
 		for _, channel := range topic.channels {
 			delete(topic.channels, channel.GetName())
-			channel.Delete()
+			_ = channel.Delete()
 		}
 		topic.channelsLock.Unlock()
 
@@ -141,7 +142,7 @@ func (topic *Topic) exit(deleted bool) error {
 	// 如果只是关闭这个topic
 	topic.channelsLock.RLock()
 	for _, channel := range topic.channels {
-		channel.Close()
+		_ = channel.Close()
 	}
 	topic.channelsLock.RUnlock()
 
@@ -179,13 +180,18 @@ func (topic *Topic) GetName() string {
 }
 
 // GetChannel 获取一个channel，如果没有就新建一个
-func (topic *Topic) GetChannel(name string) iface.IChannel {
+func (topic *Topic) GetChannel(name string) (iface.IChannel, error) {
+	// 检查channel name是否合法
+	if !utils.TopicOrChannelNameIsValid(name) {
+		return nil, e.ErrChannelNameInValid
+	}
+
 	// 查询channel是否已经存在
 	topic.channelsLock.RLock()
 	if t, exist := topic.channels[name]; exist {
 		// topic已经存在，直接返回
 		topic.channelsLock.RUnlock()
-		return t
+		return t, nil
 	}
 	topic.channelsLock.RUnlock()
 
@@ -193,9 +199,9 @@ func (topic *Topic) GetChannel(name string) iface.IChannel {
 	// 换一个更细粒度的锁
 	topic.channelsLock.Lock()
 	defer topic.channelsLock.Unlock()
-	if t, exist := topic.channels[name]; exist {
-		// topic已经存在，直接返回
-		return t
+	if c, exist := topic.channels[name]; exist {
+		// channel已经存在，直接返回
+		return c, nil
 	}
 
 	deleteCallback := func(channel iface.IChannel) {
@@ -205,7 +211,7 @@ func (topic *Topic) GetChannel(name string) iface.IChannel {
 	topic.channels[name] = c
 	topic.updateChan <- struct{}{}
 
-	return c
+	return c, nil
 }
 
 // GetExistingChannel 根据名字获取一个已存在的channel
@@ -232,7 +238,7 @@ func (topic *Topic) DeleteExistingChannel(name string) error {
 	topic.channelsLock.RUnlock()
 
 	// 存在就删除这个channel
-	channel.Delete()
+	_ = channel.Delete()
 
 	topic.channelsLock.Lock()
 	delete(topic.channels, name)
