@@ -14,15 +14,16 @@ import (
 	"time"
 )
 
+// DiskBackendQueue 磁盘队列
 type DiskBackendQueue struct {
-	name                string // 名字
-	dataPath            string // 数据路径
-	maxBytesPerFile     int64  // 每一个文件的最大长度
-	maxBytesPerFileRead int64  // 当前读取的文件的最大长度
-	minMsgSize          int32  // 消息的最小长度
-	maxMsgSize          int32  // 消息的最大长度
-	syncEvery           int64
-	syncTimeout         time.Duration
+	name                string        // 名字
+	dataPath            string        // 数据路径
+	maxBytesPerFile     int64         // 每一个文件的最大长度
+	maxBytesPerFileRead int64         // 当前读取的文件的最大长度
+	minMsgSize          int32         // 消息的最小长度
+	maxMsgSize          int32         // 消息的最大长度
+	syncEvery           int64         // 多少次次读写操作后进行fsync同步操作和同步元数据信息操作
+	syncTimeout         time.Duration // 最长多长时间进行一次同步操作
 	isExiting           bool
 	needSync            bool
 
@@ -33,8 +34,8 @@ type DiskBackendQueue struct {
 	writeFileIndex int64 // 写入的文件号
 	writeFilePos   int64 // 写入的文件位置
 
-	nextReadPos       int64
-	nextReadFileIndex int64
+	nextReadPos       int64 // 下一次要读取的位置
+	nextReadFileIndex int64 // 下一次尧都区的文件号
 
 	readFile  *os.File
 	writeFile *os.File
@@ -72,11 +73,13 @@ func NewDiskBackendQueue(name string, dataPath string, maxBytesPerFile int64,
 		syncTimeout:       syncTimeout,
 	}
 
+	// 读取元数据，此时读取了读取和写入的文件号、以及位置pos
 	err := queue.retrieveMetaData()
 	if err != nil && !os.IsNotExist(err) {
 		logger.Errorf("DiskQueue(%s) failed to retrieveMetaData - %s", queue.name, err.Error())
 	}
 
+	// 开启一个协程，进行ioLoop
 	go queue.ioLoop()
 
 	return queue
@@ -153,7 +156,9 @@ func (queue *DiskBackendQueue) Empty() error {
 	return <-queue.emptyResponseChan
 }
 
+// retrieveMetaData 检索元数据
 func (queue *DiskBackendQueue) retrieveMetaData() error {
+	// 首先获取元数据文件名，并且读取文件
 	metaFilename := queue.metaDataFileName()
 	f, err := os.OpenFile(metaFilename, os.O_RDONLY, 0600)
 	if err != nil {
@@ -161,6 +166,7 @@ func (queue *DiskBackendQueue) retrieveMetaData() error {
 	}
 	defer f.Close()
 
+	// 读取元数据文件内容
 	_, err = fmt.Fscanf(f, "%d,%d\n%d,%d\n", &queue.readFileIndex, &queue.readFilePos, &queue.writeFileIndex, &queue.writeFilePos)
 	if err != nil {
 		return err
@@ -169,6 +175,7 @@ func (queue *DiskBackendQueue) retrieveMetaData() error {
 	queue.nextReadFileIndex = queue.readFileIndex
 	queue.nextReadPos = queue.readFilePos
 
+	// 获取文件长度，检查write file pos是否合理
 	fileName := queue.fileName(queue.writeFileIndex)
 	fileInfo, err := os.Stat(fileName)
 	if err != nil {
@@ -176,6 +183,7 @@ func (queue *DiskBackendQueue) retrieveMetaData() error {
 	}
 	fileSize := fileInfo.Size()
 	if queue.writeFilePos < fileSize {
+		// write pos 小于文件长度，则跳到下一个文件进行写入
 		logger.Warnf("DISKQUEUE(%s) %s metadata writePos %d < file size of %d, skipping to new file",
 			queue.name, fileName, queue.writeFilePos, fileSize)
 		queue.writeFileIndex += 1
@@ -211,6 +219,7 @@ func (queue *DiskBackendQueue) persistMetaData() error {
 	return os.Rename(tmpFileName, fileName)
 }
 
+// disk queue的核心函数，用于读写
 func (queue *DiskBackendQueue) ioLoop() {
 	var err error
 	var count int64
@@ -233,29 +242,34 @@ func (queue *DiskBackendQueue) ioLoop() {
 			count = 0
 		}
 
+		// 有消息还未读取，那么就读取一个消息
 		if (queue.readFileIndex < queue.writeFileIndex) || (queue.readFilePos < queue.writeFilePos) {
 			if queue.nextReadPos == queue.readFilePos {
 				dataRead, err = queue.readOne()
 				if err != nil {
 					logger.Errorf("DiskQueue(%s) reading at %d of %s - %s", queue.name, queue.readFilePos, queue.fileName(queue.readFileIndex), err.Error())
-					queue.handleReadError()
+					queue.handleReadError() // 发生读取错误就取消当前文件的写入和读取，转到下一个文件写入。
 					continue
 				}
+				readChan = queue.readChan
+			} else {
+				readChan = nil
 			}
 		}
 
 		select {
-		case data := <-queue.writeChan:
+		case data := <-queue.writeChan: // 有写入请求
 			count++
 			queue.writeResponseChan <- queue.writeOne(data)
-		case readChan <- dataRead:
+		case readChan <- dataRead: // 有读取请求
 			count++
 			queue.moveForward()
-		case <-queue.emptyChan:
+		case <-queue.emptyChan: // 有清空请求
 			queue.emptyResponseChan <- queue.deleteAllFiles()
 			count = 0
 		case <-syncTicker.C:
 			if count == 0 {
+				// 期间没有进行读写操作，跳过同步
 				continue
 			}
 			queue.needSync = true
@@ -273,6 +287,7 @@ exit:
 func (queue *DiskBackendQueue) readOne() ([]byte, error) {
 	var err error
 
+	// 读取文件并seek
 	if queue.readFile == nil {
 		// 读取文件
 		curFilename := queue.fileName(queue.readFileIndex)
@@ -354,7 +369,7 @@ func (queue *DiskBackendQueue) writeOne(data []byte) error {
 		return fmt.Errorf("invalid message write size (%d) minMsgSize=%d maxMsgSize=%d", dataLen, queue.minMsgSize, queue.maxMsgSize)
 	}
 
-	// 如果加入这条消息超过了最大长度，那么就写入下一个文件中
+	// 如果加入这条消息超过了最大文件长度，那么就写入下一个文件中
 	if queue.writeFilePos > 0 && queue.writeFilePos+totalBytes > queue.maxBytesPerFile {
 		if queue.readFileIndex == queue.writeFileIndex {
 			// 若读取和写入的是同一个文件，则最大读取长度为当前文件长度
@@ -394,6 +409,7 @@ func (queue *DiskBackendQueue) writeOne(data []byte) error {
 
 	}
 
+	// 向文件中分别写入数据长度和数据
 	queue.writeBuf.Reset()
 	err = binary.Write(&queue.writeBuf, binary.BigEndian, dataLen)
 	if err != nil {
@@ -425,6 +441,7 @@ func (queue *DiskBackendQueue) fileName(index int64) string {
 	return fmt.Sprintf("%s.diskqueue.%06d.dat", queue.name, index)
 }
 
+// sync fsync和同步元数据信息
 func (queue *DiskBackendQueue) sync() error {
 	if queue.writeFile != nil {
 		err := queue.writeFile.Sync()
@@ -481,6 +498,7 @@ func (queue *DiskBackendQueue) moveForward() {
 	queue.readFilePos = queue.nextReadPos
 
 	if oldReadFileIndex != queue.readFileIndex {
+		// 已经移动到了下一个文件进行读取，删除前面的文件
 		queue.needSync = true
 
 		filename := queue.fileName(oldReadFileIndex)
@@ -494,6 +512,7 @@ func (queue *DiskBackendQueue) moveForward() {
 func (queue *DiskBackendQueue) deleteAllFiles() error {
 	err := queue.skipToNextRWFile()
 
+	// 删除元数据
 	innerErr := os.Remove(queue.metaDataFileName())
 	if innerErr != nil && !os.IsNotExist(innerErr) {
 		logger.Errorf("DISKQUEUE(%s) failed to remove metadata file - %s", queue.name, innerErr)
