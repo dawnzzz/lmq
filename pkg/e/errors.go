@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	ErrLMQDIsNotRunning       = errors.New("lmqd is not running")
+	ErrTopicNameInValid       = errors.New("topic name is invalid")
 	ErrTopicNotFound          = errors.New("topic is not found")
 	ErrTopicIsExiting         = errors.New("topic is exiting")
 	ErrChannelNotFound        = errors.New("channel is not found")

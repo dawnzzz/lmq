@@ -22,7 +22,11 @@ func (handler *CreateTopicHandler) Handle(request serveriface.IRequest) {
 	}
 
 	// 创建新的topic
-	handler.BaseHandler.LmqDaemon.GetTopic(requestBody.TopicName)
+	_, err = handler.BaseHandler.LmqDaemon.GetTopic(requestBody.TopicName)
+	if err != nil {
+		_ = handler.SendErrResponse(request, err)
+		return
+	}
 
 	_ = handler.SendOkResponse(request)
 }

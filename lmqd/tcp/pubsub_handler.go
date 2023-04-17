@@ -37,7 +37,11 @@ func (handler *PubHandler) Handle(request serveriface.IRequest) {
 	}
 
 	// 获取topic
-	topic := handler.LmqDaemon.GetTopic(requestBody.TopicName)
+	topic, err := handler.LmqDaemon.GetTopic(requestBody.TopicName)
+	if err != nil {
+		_ = handler.SendErrResponse(request, err)
+		return
+	}
 
 	// 新建消息
 	msg := message.NewMessage(topic.GenerateGUID(), requestBody.MessageData)
@@ -80,7 +84,11 @@ func (handler *SubHandler) Handle(request serveriface.IRequest) {
 	}
 
 	// 获取topic
-	topic := handler.LmqDaemon.GetTopic(requestBody.TopicName)
+	topic, err := handler.LmqDaemon.GetTopic(requestBody.TopicName)
+	if err != nil {
+		_ = handler.SendErrResponse(request, err)
+		return
+	}
 
 	// 获取channel
 	c := topic.GetChannel(requestBody.ChannelName)

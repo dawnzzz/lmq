@@ -22,7 +22,11 @@ func (handler *CreateChannelHandler) Handle(request serveriface.IRequest) {
 	}
 
 	// 创建新的channel
-	topic := handler.BaseHandler.LmqDaemon.GetTopic(requestBody.TopicName)
+	topic, err := handler.BaseHandler.LmqDaemon.GetTopic(requestBody.TopicName)
+	if err != nil {
+		_ = handler.SendErrResponse(request, err)
+		return
+	}
 	topic.GetChannel(requestBody.ChannelName)
 
 	_ = handler.SendOkResponse(request)

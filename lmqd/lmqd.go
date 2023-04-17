@@ -3,6 +3,7 @@ package lmqd
 import (
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
 	"github.com/dawnzzz/lmq/iface"
+	"github.com/dawnzzz/lmq/internel/utils"
 	"github.com/dawnzzz/lmq/lmqd/tcp"
 	"github.com/dawnzzz/lmq/lmqd/topic"
 	"github.com/dawnzzz/lmq/logger"
@@ -88,13 +89,18 @@ func (lmqd *LmqDaemon) Exit() {
 }
 
 // GetTopic 根据名字获取一个topic，如果不存在则新建一个topic
-func (lmqd *LmqDaemon) GetTopic(name string) iface.ITopic {
+func (lmqd *LmqDaemon) GetTopic(name string) (iface.ITopic, error) {
+	// 检查名字是否合法
+	if !utils.TopicOrChannelNameIsValid(name) {
+		return nil, e.ErrTopicNameInValid
+	}
+
 	// 查询topic是否已经存在
 	lmqd.topicsLock.RLock()
 	if t, exist := lmqd.topics[name]; exist {
 		// topic已经存在，直接返回
 		lmqd.topicsLock.RUnlock()
-		return t
+		return t, nil
 	}
 	lmqd.topicsLock.RUnlock()
 
@@ -104,7 +110,7 @@ func (lmqd *LmqDaemon) GetTopic(name string) iface.ITopic {
 	defer lmqd.topicsLock.Unlock()
 	if t, exist := lmqd.topics[name]; exist {
 		// topic已经存在，直接返回
-		return t
+		return t, nil
 	}
 
 	deleteCallback := func(t iface.ITopic) {
@@ -114,7 +120,7 @@ func (lmqd *LmqDaemon) GetTopic(name string) iface.ITopic {
 	t.Start()
 	lmqd.topics[name] = t
 
-	return t
+	return t, nil
 }
 
 // GetExistingTopic 获取一个已经存在的topic
