@@ -8,13 +8,16 @@ type LmqdConfig struct {
 	TcpHost string
 	TcpPort int
 
-	MaxMessageSize uint64 // 消息的最大长度
+	MinMessageSize int64 // 消息的最小长度
+	MaxMessageSize int64 // 消息的最大长度
 
-	MemQueueSize              int // 内存topic/channel的消息数
-	TcpServerWorkerPoolSize   int // TCP服务器Worker数量
-	TcpServerMaxWorkerTaskLen int // TCP服务器 Worker任务队列长度
-	TcpServerMaxMsgChanLen    int // 连接发送队列的缓冲区长度
-	TcpServerMaxConn          int // TCP服务器最大连接数
+	DataRootPath              string // 用于保存持久化数据得根目录
+	MaxBytesPerFile           int64  // 磁盘队列文件每一个文件的最大长度
+	MemQueueSize              int    // 内存topic/channel的消息数
+	TcpServerWorkerPoolSize   int    // TCP服务器Worker数量
+	TcpServerMaxWorkerTaskLen int    // TCP服务器 Worker任务队列长度
+	TcpServerMaxMsgChanLen    int    // 连接发送队列的缓冲区长度
+	TcpServerMaxConn          int    // TCP服务器最大连接数
 
 	TLSHost     string
 	TLSPort     int
@@ -27,9 +30,13 @@ type LmqdConfig struct {
 
 func init() {
 	GlobalLmqdConfig = &LmqdConfig{
-		TcpHost:                   "0.0.0.0",
-		TcpPort:                   6200,
-		MaxMessageSize:            1024768,
+		TcpHost:        "0.0.0.0",
+		TcpPort:        6200,
+		MinMessageSize: 0,
+		MaxMessageSize: 1024768,
+
+		DataRootPath:              "data",
+		MaxBytesPerFile:           1024 * 1024 * 64,
 		MemQueueSize:              10000,
 		TcpServerWorkerPoolSize:   10,
 		TcpServerMaxWorkerTaskLen: 2048,

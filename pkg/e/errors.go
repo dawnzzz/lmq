@@ -1,6 +1,10 @@
 package e
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"github.com/dawnzzz/lmq/config"
+)
 
 var (
 	ErrLMQDIsNotRunning       = errors.New("lmqd is not running")
@@ -10,4 +14,5 @@ var (
 	ErrChannelIsExiting       = errors.New("channel is exiting")
 	ErrMessageIDIsNotInFlight = errors.New("message ID is not in flight")
 	ErrClientNotOwnTheMessage = errors.New("this client not own the message")
+	ErrMessageLengthInvalid   = fmt.Errorf("message length is in valid, length is limited (%v, %v)", config.GlobalLmqdConfig.MinMessageSize, config.GlobalLmqdConfig.MaxMessageSize)
 )

@@ -9,6 +9,8 @@ type MessageID [MsgIDLength]byte
 type IMessage interface {
 	GetID() MessageID            // 获取message id
 	GetData() []byte             // 获取消息的内容
+	GetDataLength() int64        // 获取消息数据部分的长度
+	GetLength() int64            // 获取消息持久化总长度（包括ID 时间戳等）
 	GetTimestamp() int64         // 获取消息时间戳
 	GetAttempts() uint16         // 获取尝试次数
 	AddAttempts(delta uint16)    //	增加尝试次数

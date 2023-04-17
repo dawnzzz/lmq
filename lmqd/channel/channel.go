@@ -172,6 +172,11 @@ func (channel *Channel) PutMessage(message iface.IMessage) error {
 		return e.ErrChannelIsExiting
 	}
 
+	if message.GetDataLength() < config.GlobalLmqdConfig.MinMessageSize || message.GetDataLength() > config.GlobalLmqdConfig.MaxMessageSize {
+		// 消息长度不合法
+		return e.ErrMessageLengthInvalid
+	}
+
 	// 消息发送到管道中
 	err := channel.put(message)
 	if err != nil {

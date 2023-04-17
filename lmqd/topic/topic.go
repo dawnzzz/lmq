@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
+	"github.com/dawnzzz/lmq/lmqd/backendqueue"
 	"github.com/dawnzzz/lmq/lmqd/channel"
 	"github.com/dawnzzz/lmq/lmqd/message"
 	"github.com/dawnzzz/lmq/logger"
@@ -24,7 +25,8 @@ type Topic struct {
 
 	guidFactory *GUIDFactory // message id 生成器
 
-	memoryMsgChan chan iface.IMessage // 内存chan
+	memoryMsgChan  chan iface.IMessage       // 内存chan
+	backendMsgChan backendqueue.BackendQueue // 当内存chan满了之后，将消息存入到后端队列中（持久化保存）
 
 	deleteCallback func(topic iface.ITopic)
 	deleter        sync.Once
@@ -44,8 +46,6 @@ func NewTopic(name string, deleteCallback func(topic iface.ITopic)) iface.ITopic
 		name:     name,
 		channels: map[string]iface.IChannel{},
 
-		memoryMsgChan: make(chan iface.IMessage, config.GlobalLmqdConfig.MemQueueSize),
-
 		deleteCallback: deleteCallback,
 
 		startChan:   make(chan struct{}, 1),
@@ -55,8 +55,13 @@ func NewTopic(name string, deleteCallback func(topic iface.ITopic)) iface.ITopic
 		closedChan:  make(chan struct{}, 1),
 	}
 
-	if strings.HasSuffix(name, "#temp") {
-		topic.isTemporary = true
+	// 内存级队列
+	if config.GlobalLmqdConfig.MemQueueSize > 0 {
+		if strings.HasSuffix(name, "#temp") { // 只有内存级队列长度大于0才允许内存级队列
+			topic.isTemporary = true
+			topic.backendMsgChan = backendqueue.NewDummyBackendQueue() // 临时队列超出长度会被丢弃
+		}
+		topic.memoryMsgChan = make(chan iface.IMessage, config.GlobalLmqdConfig.MemQueueSize)
 	}
 
 	nodeID, _ := binary.Varint([]byte(topic.name))
@@ -255,6 +260,11 @@ func (topic *Topic) PutMessage(message iface.IMessage) error {
 	defer topic.channelsLock.RUnlock()
 	if topic.isExiting.Load() {
 		return e.ErrTopicIsExiting
+	}
+
+	if message.GetDataLength() < config.GlobalLmqdConfig.MinMessageSize || message.GetDataLength() > config.GlobalLmqdConfig.MaxMessageSize {
+		// 消息长度不合法
+		return e.ErrMessageLengthInvalid
 	}
 
 	select {

@@ -35,6 +35,19 @@ func (msg *Message) GetData() []byte {
 	return msg.Data
 }
 
+func (msg *Message) GetDataLength() int64 {
+	return int64(len(msg.Data))
+}
+
+func (msg *Message) GetLength() int64 {
+	idLen := int64(iface.MsgIDLength)
+	dataLen := int64(len(msg.Data))
+	timestampLen := int64(8)
+	attemptsLen := int64(2)
+
+	return idLen + dataLen + timestampLen + attemptsLen
+}
+
 func (msg *Message) GetTimestamp() int64 {
 	return msg.Timestamp
 }
