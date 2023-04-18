@@ -10,6 +10,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"path"
 	"sync"
 	"time"
 )
@@ -251,10 +252,10 @@ func (queue *DiskBackendQueue) ioLoop() {
 					queue.handleReadError() // 发生读取错误就取消当前文件的写入和读取，转到下一个文件写入。
 					continue
 				}
-				readChan = queue.readChan
-			} else {
-				readChan = nil
 			}
+			readChan = queue.readChan
+		} else {
+			readChan = nil
 		}
 
 		select {
@@ -434,11 +435,11 @@ func (queue *DiskBackendQueue) writeOne(data []byte) error {
 }
 
 func (queue *DiskBackendQueue) metaDataFileName() string {
-	return fmt.Sprintf("%s.diskqueue.meta.dat", queue.name)
+	return path.Join(queue.dataPath, fmt.Sprintf("%s.diskqueue.meta.dat", queue.name))
 }
 
 func (queue *DiskBackendQueue) fileName(index int64) string {
-	return fmt.Sprintf("%s.diskqueue.%06d.dat", queue.name, index)
+	return path.Join(queue.dataPath, fmt.Sprintf("%s.diskqueue.%06d.dat", queue.name, index))
 }
 
 // sync fsync和同步元数据信息
