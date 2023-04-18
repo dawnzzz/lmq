@@ -81,6 +81,11 @@ func (lmqd *LmqDaemon) Exit() {
 		return
 	}
 
+	// 关闭所有得topic
+	for _, t := range lmqd.topics {
+		_ = t.Close()
+	}
+
 	select {
 	case lmqd.exitChan <- struct{}{}:
 		lmqd.status.Store(exited) // 转为关闭状态

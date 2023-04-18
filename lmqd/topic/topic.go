@@ -2,7 +2,6 @@ package topic
 
 import (
 	"encoding/binary"
-	"errors"
 	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
 	"github.com/dawnzzz/lmq/internel/utils"
@@ -26,8 +25,8 @@ type Topic struct {
 
 	guidFactory *GUIDFactory // message id 生成器
 
-	memoryMsgChan  chan iface.IMessage       // 内存chan
-	backendMsgChan backendqueue.BackendQueue // 当内存chan满了之后，将消息存入到后端队列中（持久化保存）
+	memoryMsgChan chan iface.IMessage       // 内存chan
+	backendQueue  backendqueue.BackendQueue // 当内存chan满了之后，将消息存入到后端队列中（持久化保存）
 
 	deleteCallback func(topic iface.ITopic)
 	deleter        sync.Once
@@ -60,9 +59,19 @@ func NewTopic(name string, deleteCallback func(topic iface.ITopic)) iface.ITopic
 	if config.GlobalLmqdConfig.MemQueueSize > 0 {
 		if strings.HasSuffix(name, "#temp") { // 只有内存级队列长度大于0才允许内存级队列
 			topic.isTemporary = true
-			topic.backendMsgChan = backendqueue.NewDummyBackendQueue() // 临时队列超出长度会被丢弃
+			topic.backendQueue = backendqueue.NewDummyBackendQueue() // 临时队列超出长度会被丢弃
 		}
 		topic.memoryMsgChan = make(chan iface.IMessage, config.GlobalLmqdConfig.MemQueueSize)
+	}
+
+	// 磁盘队列
+	if topic.backendQueue == nil {
+		minMsgSize := config.GlobalLmqdConfig.MinMessageSize + iface.MsgIDLength + 8 + 2
+		maxMsgSize := config.GlobalLmqdConfig.MaxMessageSize + iface.MsgIDLength + 8 + 2
+		topic.backendQueue = backendqueue.NewDiskBackendQueue(topic.name,
+			config.GlobalLmqdConfig.DataRootPath, config.GlobalLmqdConfig.MaxBytesPerFile, minMsgSize, maxMsgSize,
+			config.GlobalLmqdConfig.SyncEvery, config.GlobalLmqdConfig.SyncTimeout,
+		)
 	}
 
 	nodeID, _ := binary.Varint([]byte(topic.name))
@@ -135,8 +144,11 @@ func (topic *Topic) exit(deleted bool) error {
 		}
 		topic.channelsLock.Unlock()
 
-		// 清空队列
-		return topic.Empty()
+		// 清空内存队列
+		_ = topic.Empty()
+
+		// 清空backend队列
+		return topic.backendQueue.Delete()
 	}
 
 	// 如果只是关闭这个topic
@@ -146,7 +158,29 @@ func (topic *Topic) exit(deleted bool) error {
 	}
 	topic.channelsLock.RUnlock()
 
-	// TODO: 在内存队列中的数据要进行持久化操作，否则会丢失
+	// 在内存队列中的数据要进行持久化操作，否则会丢失
+	_ = topic.persistMemoryChan()
+
+	return topic.backendQueue.Close()
+}
+
+// 将内存队列中的数据持久化到磁盘中，防止丢失
+func (topic *Topic) persistMemoryChan() error {
+
+	for {
+		select {
+		case msg := <-topic.memoryMsgChan:
+			data, err := message.ConvertMessageToBytes(msg)
+			if err != nil {
+				continue
+			}
+			_ = topic.backendQueue.Put(data)
+		default:
+			goto finish
+		}
+	}
+
+finish:
 	return nil
 }
 
@@ -161,7 +195,8 @@ func (topic *Topic) Empty() error {
 	}
 
 finish:
-	return nil
+	// 清空backend队列
+	return topic.backendQueue.Empty()
 }
 
 // IsPausing 返回是否处于暂停状态
@@ -261,33 +296,45 @@ func (topic *Topic) DeleteExistingChannel(name string) error {
 	return nil
 }
 
-func (topic *Topic) PutMessage(message iface.IMessage) error {
+func (topic *Topic) PutMessage(msg iface.IMessage) error {
 	topic.channelsLock.RLock()
 	defer topic.channelsLock.RUnlock()
 	if topic.isExiting.Load() {
 		return e.ErrTopicIsExiting
 	}
 
-	if message.GetDataLength() < config.GlobalLmqdConfig.MinMessageSize || message.GetDataLength() > config.GlobalLmqdConfig.MaxMessageSize {
+	if msg.GetDataLength() < config.GlobalLmqdConfig.MinMessageSize || msg.GetDataLength() > config.GlobalLmqdConfig.MaxMessageSize {
 		// 消息长度不合法
 		return e.ErrMessageLengthInvalid
 	}
 
 	select {
-	case topic.memoryMsgChan <- message:
+	case topic.memoryMsgChan <- msg:
 	default:
-		// TODO:超出的消息先暂时丢弃
-		return errors.New("message is discarded")
+		// 存入backend queue
+
+		// 转为[]byte
+		data, err := message.ConvertMessageToBytes(msg)
+		if err != nil {
+			return err
+		}
+
+		// 放到disk queue中
+		err = topic.backendQueue.Put(data)
+		if err != nil {
+			return err
+		}
 	}
 
 	topic.messageCount.Add(1)
-	topic.messageBytes.Add(uint64(len(message.GetData())))
+	topic.messageBytes.Add(uint64(len(msg.GetData())))
 
 	return nil
 }
 
 func (topic *Topic) messagePump() {
 	var memoryMsgChan chan iface.IMessage
+	var backendMsgChan <-chan []byte
 	var msg iface.IMessage
 	var channels []iface.IChannel
 
@@ -314,11 +361,18 @@ func (topic *Topic) messagePump() {
 	topic.channelsLock.RUnlock()
 	if len(channels) > 0 && !topic.isPausing.Load() {
 		memoryMsgChan = topic.memoryMsgChan
+		backendMsgChan = topic.backendQueue.ReadChan()
 	}
 
 	for {
 		select {
 		case msg = <-memoryMsgChan: // 获取msg
+		case data := <-backendMsgChan: // 从disk queue中获取
+			var err error
+			msg, err = message.ConvertBytesToMessage(data)
+			if err != nil {
+				continue
+			}
 		case <-topic.updateChan: // 更新channels
 			channels = channels[:0]
 			topic.channelsLock.RLock()
@@ -338,17 +392,17 @@ func (topic *Topic) messagePump() {
 		case <-topic.pauseChan: // 暂停/恢复
 			if topic.IsPausing() {
 				memoryMsgChan = topic.memoryMsgChan
+				backendMsgChan = topic.backendQueue.ReadChan()
 			} else {
 				memoryMsgChan = nil
+				backendMsgChan = nil
 			}
 
 			continue
 		}
 
-		// TODO：向所有channel发送msg
-		if topic.isPausing.Load() {
-			continue
-		}
+		// 向所有channel发送消息
+		logger.Infof("topic(%s) is publishing a message", topic.name)
 		for i, channel := range channels {
 			var chanMsg iface.IMessage
 

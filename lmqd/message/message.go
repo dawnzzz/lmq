@@ -35,25 +35,33 @@ func (msg *Message) GetData() []byte {
 	return msg.Data
 }
 
-func (msg *Message) GetDataLength() int64 {
-	return int64(len(msg.Data))
+func (msg *Message) GetDataLength() int32 {
+	return int32(len(msg.Data))
 }
 
-func (msg *Message) GetLength() int64 {
-	idLen := int64(iface.MsgIDLength)
-	dataLen := int64(len(msg.Data))
-	timestampLen := int64(8)
-	attemptsLen := int64(2)
+func (msg *Message) GetLength() int32 {
+	idLen := iface.MsgIDLength
+	dataLen := len(msg.Data)
+	timestampLen := 8
+	attemptsLen := 2
 
-	return idLen + dataLen + timestampLen + attemptsLen
+	return int32(idLen + dataLen + timestampLen + attemptsLen)
 }
 
 func (msg *Message) GetTimestamp() int64 {
 	return msg.Timestamp
 }
 
+func (msg *Message) SetTimestamp(timestamp int64) {
+	msg.Timestamp = timestamp
+}
+
 func (msg *Message) GetAttempts() uint16 {
 	return msg.Attempts
+}
+
+func (msg *Message) SetAttempts(attempts uint16) {
+	msg.Attempts = attempts
 }
 
 func (msg *Message) AddAttempts(delta uint16) {

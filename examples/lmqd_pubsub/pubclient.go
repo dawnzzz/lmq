@@ -26,7 +26,7 @@ func main() {
 	}
 	data, _ := json.Marshal(request)
 
-	_ = client.GetConnection().SendBufMsg(tcp.CreateChannelID, data)
+	//_ = client.GetConnection().SendBufMsg(tcp.CreateChannelID, data)
 	_ = client.GetConnection().SendBufMsg(tcp.PubID, data)
 
 	time.Sleep(2 * time.Second)
