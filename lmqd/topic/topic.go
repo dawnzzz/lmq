@@ -376,6 +376,7 @@ func (topic *Topic) messagePump() {
 			var err error
 			msg, err = message.ConvertBytesToMessage(data)
 			if err != nil {
+				logger.Errorf("topic(%s) convert bytes to message failed when message pump, err:%s", topic.name, err.Error())
 				continue
 			}
 		case <-topic.updateChan: // 更新channels
