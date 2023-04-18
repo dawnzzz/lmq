@@ -166,6 +166,9 @@ func (topic *Topic) exit(deleted bool) error {
 
 // 将内存队列中的数据持久化到磁盘中，防止丢失
 func (topic *Topic) persistMemoryChan() error {
+	if len(topic.memoryMsgChan) <= 0 {
+		return nil
+	}
 
 	for {
 		select {
