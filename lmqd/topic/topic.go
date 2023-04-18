@@ -319,12 +319,14 @@ func (topic *Topic) PutMessage(msg iface.IMessage) error {
 		// 转为[]byte
 		data, err := message.ConvertMessageToBytes(msg)
 		if err != nil {
+			logger.Errorf("topic(%s) convert message to bytes err when PutMessage: %s", topic.name, err.Error())
 			return err
 		}
 
 		// 放到disk queue中
 		err = topic.backendQueue.Put(data)
 		if err != nil {
+			logger.Errorf("topic(%s) convert message to bytes err when put msg into backend queue: %s", topic.name, err.Error())
 			return err
 		}
 	}
