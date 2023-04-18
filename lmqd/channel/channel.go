@@ -2,8 +2,11 @@ package channel
 
 import (
 	"errors"
+	"fmt"
 	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
+	"github.com/dawnzzz/lmq/lmqd/backendqueue"
+	"github.com/dawnzzz/lmq/lmqd/message"
 	"github.com/dawnzzz/lmq/logger"
 	"github.com/dawnzzz/lmq/pkg/e"
 	"strings"
@@ -22,7 +25,8 @@ type Channel struct {
 	exitLock    sync.RWMutex // 发送消息与退出的互斥
 	isPausing   atomic.Bool  // 是否已经暂停
 
-	memoryMsgChan chan iface.IMessage // 内存chan
+	memoryMsgChan chan iface.IMessage       // 内存chan
+	backendQueue  backendqueue.BackendQueue // backend队列
 
 	deleteCallback func(topic iface.IChannel)
 	deleter        sync.Once
@@ -49,7 +53,26 @@ func NewChannel(topicName, name string, deleteCallback func(topic iface.IChannel
 
 		deleteCallback: deleteCallback,
 	}
-	channel.isTemporary = strings.HasSuffix(channel.name, "#temp")
+
+	if config.GlobalLmqdConfig.MemQueueSize > 0 {
+		if strings.HasSuffix(channel.name, "#temp") {
+			// 临时队列
+			channel.isTemporary = true
+			channel.backendQueue = backendqueue.NewDummyBackendQueue()
+		}
+
+		channel.memoryMsgChan = make(chan iface.IMessage, config.GlobalLmqdConfig.MemQueueSize)
+	}
+
+	if channel.backendQueue == nil {
+		backendQueueName := fmt.Sprintf("%s[%s]", topicName, name)
+		minMsgSize := config.GlobalLmqdConfig.MinMessageSize + iface.MsgIDLength + 8 + 2
+		maxMsgSize := config.GlobalLmqdConfig.MaxMessageSize + iface.MsgIDLength + 8 + 2
+		channel.backendQueue = backendqueue.NewDiskBackendQueue(backendQueueName,
+			config.GlobalLmqdConfig.DataRootPath, config.GlobalLmqdConfig.MaxBytesPerFile, minMsgSize, maxMsgSize,
+			config.GlobalLmqdConfig.SyncEvery, config.GlobalLmqdConfig.SyncTimeout,
+		)
+	}
 
 	// 初始化优先队列
 	channel.initPQ()
@@ -115,7 +138,8 @@ func (channel *Channel) Empty() error {
 	}
 
 finish:
-	return nil
+	// 清空backend queue
+	return channel.backendQueue.Empty()
 }
 
 func (channel *Channel) Close() error {
@@ -144,9 +168,36 @@ func (channel *Channel) exit(deleted bool) error {
 
 	if deleted {
 		// 如果删除channel，则关闭之前先清空channel
-		return channel.Empty()
+		_ = channel.Empty()
+		// 接着删除disk queue
+		return channel.backendQueue.Delete()
 	}
 
+	// 如果只是关闭，将memory chan中的数据持久化到磁盘中
+	_ = channel.persistMemoryChan()
+	return channel.backendQueue.Close()
+}
+
+func (channel *Channel) persistMemoryChan() error {
+	if len(channel.memoryMsgChan) <= 0 {
+		return nil
+	}
+
+	for {
+		select {
+		case msg := <-channel.memoryMsgChan:
+			// 将消息转为[]byte
+			data, err := message.ConvertMessageToBytes(msg)
+			if err != nil {
+				continue
+			}
+			_ = channel.backendQueue.Put(data)
+		default:
+			goto finish
+		}
+	}
+
+finish:
 	return nil
 }
 
@@ -160,6 +211,10 @@ func (channel *Channel) IsExiting() bool {
 
 func (channel *Channel) GetName() string {
 	return channel.name
+}
+
+func (channel *Channel) GetTopicName() string {
+	return channel.topicName
 }
 
 // PutMessage 投递一个消息
@@ -188,12 +243,23 @@ func (channel *Channel) PutMessage(message iface.IMessage) error {
 	return nil
 }
 
-func (channel *Channel) put(message iface.IMessage) error {
+func (channel *Channel) put(msg iface.IMessage) error {
 	select {
-	case channel.memoryMsgChan <- message:
+	case channel.memoryMsgChan <- msg:
 	default:
-		// TODO:超出的消息先暂时丢弃
-		return errors.New("message is discarded")
+		// 内存chan已经满了，放入backend queue中
+		// 转为[]byte
+		data, err := message.ConvertMessageToBytes(msg)
+		if err != nil {
+			logger.Errorf("topic(%s) channel(%s) convert message to bytes err when PutMessage: %s", channel.topicName, channel.name, err.Error())
+			return err
+		}
+		// 送入backend queue
+		err = channel.backendQueue.Put(data)
+		if err != nil {
+			logger.Errorf("topic(%s) channel(%s) convert message to bytes err when put msg into backend queue: %s", channel.topicName, channel.name, err.Error())
+			return err
+		}
 	}
 
 	return nil
@@ -202,6 +268,11 @@ func (channel *Channel) put(message iface.IMessage) error {
 // GetMemoryMsgChan 获取memoryMsgChan
 func (channel *Channel) GetMemoryMsgChan() chan iface.IMessage {
 	return channel.memoryMsgChan
+}
+
+// GetBackendQueue 获取backend queue
+func (channel *Channel) GetBackendQueue() backendqueue.BackendQueue {
+	return channel.backendQueue
 }
 
 // AddClient 为通道添加一个订阅的用户

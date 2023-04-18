@@ -1,6 +1,7 @@
 package iface
 
 import (
+	"github.com/dawnzzz/lmq/lmqd/backendqueue"
 	"time"
 )
 
@@ -14,11 +15,13 @@ type IChannel interface {
 	IsExiting() bool // 是否退出
 
 	GetMemoryMsgChan() chan IMessage
+	GetBackendQueue() backendqueue.BackendQueue
 
 	AddClient(clientID uint64, client IConsumer) error // 添加一个订阅的用户
 	RemoveClient(clientID uint64)                      // 移除一个订阅的用户
 
 	GetName() string                   // 获取一个channel的name
+	GetTopicName() string              // 获取channel得topic name
 	PutMessage(message IMessage) error // 向channel发布一个消息
 	FinishMessage(clientID uint64, messageID MessageID) error
 	RequeueMessage(clientID uint64, messageID MessageID) error

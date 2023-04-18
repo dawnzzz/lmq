@@ -4,6 +4,8 @@ import (
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
 	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
+	"github.com/dawnzzz/lmq/lmqd/message"
+	"github.com/dawnzzz/lmq/logger"
 	"sync"
 	"sync/atomic"
 )
@@ -176,14 +178,17 @@ func (tcpClient *TcpClient) sendMessage(message iface.IMessage) error {
 
 func (tcpClient *TcpClient) messagePump() {
 	var memoryMsgChan chan iface.IMessage
+	var backendMsgChan <-chan []byte
 	var msg iface.IMessage
 	var subChannel iface.IChannel
 
 	for {
 		if !tcpClient.IsReadyRecv() {
 			memoryMsgChan = nil
+			backendMsgChan = nil
 		} else {
 			memoryMsgChan = tcpClient.channel.GetMemoryMsgChan()
+			backendMsgChan = tcpClient.channel.GetBackendQueue().ReadChan()
 			subChannel = tcpClient.channel
 		}
 
@@ -191,16 +196,26 @@ func (tcpClient *TcpClient) messagePump() {
 		case <-tcpClient.closingChan:
 			goto Exit
 		case msg = <-memoryMsgChan:
-			// 向客户端发送消息
-			msg.AddAttempts(1)
-
-			_ = subChannel.StartInFlightTimeout(msg, tcpClient.ID, config.GlobalLmqdConfig.MessageTimeout)
-			err := tcpClient.sendMessage(msg)
+		// 从内存队列中取出消息
+		case data := <-backendMsgChan: // 从磁盘中取出消息
+			var err error
+			msg, err = message.ConvertBytesToMessage(data)
 			if err != nil {
-				goto Exit
+				logger.Errorf("topic(%s) channel(%s) convert bytes to message failed in tcp client message pump, err:%s", tcpClient.channel.GetTopicName(), tcpClient.channel.GetName(), err.Error())
+				continue
 			}
 		case <-tcpClient.updateReadyChan:
 			continue
+		}
+
+		// 向客户端发送消息
+		msg.AddAttempts(1)
+
+		_ = subChannel.StartInFlightTimeout(msg, tcpClient.ID, config.GlobalLmqdConfig.MessageTimeout)
+		err := tcpClient.sendMessage(msg)
+		if err != nil {
+			logger.Errorf("topic(%s) channel(%s) send message failed in tcp client message pump, err:%s", tcpClient.channel.GetTopicName(), tcpClient.channel.GetName(), err.Error())
+			goto Exit
 		}
 	}
 
