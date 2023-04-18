@@ -16,6 +16,8 @@ import (
 )
 
 type Topic struct {
+	lmqd iface.ILmqDaemon
+
 	name         string
 	isTemporary  bool                      // 标记是否是临时的topic
 	isPausing    atomic.Bool               // 标记是否已经暂停
@@ -41,8 +43,10 @@ type Topic struct {
 	messageBytes atomic.Uint64
 }
 
-func NewTopic(name string, deleteCallback func(topic iface.ITopic)) iface.ITopic {
+func NewTopic(lmqd iface.ILmqDaemon, name string, deleteCallback func(topic iface.ITopic)) iface.ITopic {
 	topic := &Topic{
+		lmqd: lmqd,
+
 		name:     name,
 		channels: map[string]iface.IChannel{},
 
@@ -78,6 +82,8 @@ func NewTopic(name string, deleteCallback func(topic iface.ITopic)) iface.ITopic
 	topic.guidFactory = NewGUIDFactory(nodeID)
 
 	go topic.messagePump()
+
+	lmqd.Notify(!topic.isTemporary)
 
 	return topic
 }
@@ -148,7 +154,11 @@ func (topic *Topic) exit(deleted bool) error {
 		_ = topic.Empty()
 
 		// 清空backend队列
-		return topic.backendQueue.Delete()
+		err := topic.backendQueue.Delete()
+
+		topic.lmqd.Notify(!topic.isTemporary)
+
+		return err
 	}
 
 	// 如果只是关闭这个topic
@@ -217,6 +227,19 @@ func (topic *Topic) GetName() string {
 	return topic.name
 }
 
+// GetChannelNames 获取所有的channel名字
+func (topic *Topic) GetChannelNames() []string {
+	topic.channelsLock.RLock()
+	defer topic.channelsLock.RUnlock()
+
+	channelNames := make([]string, 0, len(topic.channels))
+	for _, c := range topic.channels {
+		channelNames = append(channelNames, c.GetName())
+	}
+
+	return channelNames
+}
+
 // GetChannel 获取一个channel，如果没有就新建一个
 func (topic *Topic) GetChannel(name string) (iface.IChannel, error) {
 	// 检查channel name是否合法
@@ -245,7 +268,7 @@ func (topic *Topic) GetChannel(name string) (iface.IChannel, error) {
 	deleteCallback := func(channel iface.IChannel) {
 		_ = topic.DeleteExistingChannel(channel.GetName())
 	}
-	c := channel.NewChannel(topic.name, name, deleteCallback)
+	c := channel.NewChannel(topic.lmqd, topic.name, name, deleteCallback)
 	topic.channels[name] = c
 	topic.updateChan <- struct{}{}
 

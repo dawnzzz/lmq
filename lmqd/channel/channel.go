@@ -18,6 +18,7 @@ import (
 type Channel struct {
 	sync.RWMutex
 
+	lmqd        iface.ILmqDaemon
 	topicName   string       // topic名称
 	name        string       // channel名称
 	isTemporary bool         // 标记是否是临时的topic
@@ -42,8 +43,9 @@ type Channel struct {
 	timeoutCount atomic.Uint64 // 超时消息的数量
 }
 
-func NewChannel(topicName, name string, deleteCallback func(topic iface.IChannel)) iface.IChannel {
+func NewChannel(lmqd iface.ILmqDaemon, topicName, name string, deleteCallback func(topic iface.IChannel)) iface.IChannel {
 	channel := &Channel{
+		lmqd:      lmqd,
 		topicName: topicName,
 		name:      name,
 
@@ -78,6 +80,8 @@ func NewChannel(topicName, name string, deleteCallback func(topic iface.IChannel
 	channel.initPQ()
 
 	go channel.queueScanWorker()
+
+	channel.lmqd.Notify(!channel.isTemporary)
 
 	return channel
 }
@@ -170,7 +174,11 @@ func (channel *Channel) exit(deleted bool) error {
 		// 如果删除channel，则关闭之前先清空channel
 		_ = channel.Empty()
 		// 接着删除disk queue
-		return channel.backendQueue.Delete()
+		err := channel.backendQueue.Delete()
+
+		channel.lmqd.Notify(!channel.isTemporary)
+
+		return err
 	}
 
 	// 如果只是关闭，将memory chan中的数据持久化到磁盘中

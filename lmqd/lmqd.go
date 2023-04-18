@@ -26,12 +26,15 @@ type LmqDaemon struct {
 	clientIDMap      map[serveriface.IConnection]uint64 // 记录连接与client的映射关系
 	clientIDSequence uint64                             // 客户端ID
 	clientIDLock     sync.RWMutex
+	isLoading        atomic.Bool
 
 	status     atomic.Uint32           // 当前运行状态：starting、running、closing
 	topics     map[string]iface.ITopic // 保存所有的topic字典
 	topicsLock sync.RWMutex            // 控制对topic字典的互斥访问
 
 	tcpServer *tcp.TcpServer
+
+	waitGroup utils.WaitGroupWrapper
 
 	exitChan chan struct{}
 }
@@ -63,7 +66,6 @@ func (lmqd *LmqDaemon) Main() {
 		select {
 		case <-signalChan:
 			// 收到退出信号，关闭lmqd
-			lmqd.tcpServer.Stop()
 			lmqd.Exit()
 			return
 		}
@@ -81,16 +83,26 @@ func (lmqd *LmqDaemon) Exit() {
 		return
 	}
 
+	// 关闭tcp服务器
+	lmqd.tcpServer.Stop()
+
 	// 关闭所有得topic
 	for _, t := range lmqd.topics {
 		_ = t.Close()
 	}
+
+	// 持久化元数据信息
+	_ = lmqd.PersistMetaData()
+
+	lmqd.waitGroup.Wait()
 
 	select {
 	case lmqd.exitChan <- struct{}{}:
 		lmqd.status.Store(exited) // 转为关闭状态
 	default:
 	}
+
+	close(lmqd.exitChan)
 }
 
 // GetTopic 根据名字获取一个topic，如果不存在则新建一个topic
@@ -114,6 +126,7 @@ func (lmqd *LmqDaemon) GetTopic(name string) (iface.ITopic, error) {
 	lmqd.topicsLock.Lock()
 	defer lmqd.topicsLock.Unlock()
 	if t, exist := lmqd.topics[name]; exist {
+		lmqd.topicsLock.Unlock()
 		// topic已经存在，直接返回
 		return t, nil
 	}
@@ -121,9 +134,14 @@ func (lmqd *LmqDaemon) GetTopic(name string) (iface.ITopic, error) {
 	deleteCallback := func(t iface.ITopic) {
 		_ = lmqd.DeleteExistingTopic(t.GetName())
 	}
-	t := topic.NewTopic(name, deleteCallback)
-	t.Start()
+	t := topic.NewTopic(lmqd, name, deleteCallback)
 	lmqd.topics[name] = t
+
+	if lmqd.isLoading.Load() {
+		return t, nil
+	}
+
+	t.Start()
 
 	return t, nil
 }
@@ -178,4 +196,18 @@ func (lmqd *LmqDaemon) GenerateClientID(conn serveriface.IConnection) uint64 {
 	lmqd.clientIDMap[conn] = lmqd.clientIDSequence
 
 	return lmqd.clientIDSequence
+}
+
+// Notify 通知lmqd进行持久化
+func (lmqd *LmqDaemon) Notify(persist bool) {
+	if !persist && lmqd.isLoading.Load() {
+		return
+	}
+
+	lmqd.waitGroup.Wrap(func() {
+		err := lmqd.PersistMetaData()
+		if err != nil {
+			logger.Errorf("lmqd PersistMetaData failed in Notify, err: %s", err.Error())
+		}
+	})
 }

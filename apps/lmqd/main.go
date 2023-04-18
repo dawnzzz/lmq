@@ -33,5 +33,16 @@ func main() {
 	}
 
 	lmqDaemon := lmqd.NewLmqDaemon()
+
+	// 加载元数据，持久化元数据，检查是否正常
+	err = lmqDaemon.LoadMetaData()
+	if err != nil {
+		panic(err)
+	}
+	err = lmqDaemon.PersistMetaData()
+	if err != nil {
+		panic(err)
+	}
+
 	lmqDaemon.Main()
 }
