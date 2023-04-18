@@ -9,7 +9,7 @@ import (
 func TestLmqd(t *testing.T) {
 	lmqd := NewLmqDaemon()
 
-	topic := lmqd.GetTopic("test")
+	topic, _ := lmqd.GetTopic("test")
 	if topic == nil {
 		t.Error("add topic err")
 		return
