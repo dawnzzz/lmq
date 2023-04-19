@@ -8,39 +8,39 @@ type Registration struct {
 	SubKey   string
 }
 
-func NewRegistration(category iface.Category, key string, subKey string) iface.IRegistration {
-	return &Registration{
+func MakeRegistration(category iface.Category, key string, subKey string) Registration {
+	return Registration{
 		Category: category,
 		Key:      key,
 		SubKey:   subKey,
 	}
 }
 
-func (registration *Registration) GetCategory() iface.Category {
+func (registration Registration) GetCategory() iface.Category {
 	return registration.Category
 }
 
-func (registration *Registration) GetKey() string {
+func (registration Registration) GetKey() string {
 	return registration.Key
 }
 
-func (registration *Registration) GetCSubKey() string {
+func (registration Registration) GetCSubKey() string {
 	return registration.SubKey
 }
 
-func (registration *Registration) SetCategory(category iface.Category) {
+func (registration Registration) SetCategory(category iface.Category) {
 	registration.Category = category
 }
 
-func (registration *Registration) SetKey(key string) {
+func (registration Registration) SetKey(key string) {
 	registration.Key = key
 }
 
-func (registration *Registration) SetCSubKey(subKey string) {
+func (registration Registration) SetCSubKey(subKey string) {
 	registration.SubKey = subKey
 }
 
-func (registration *Registration) IsMatch(category iface.Category, key string, subKey string) bool {
+func (registration Registration) IsMatch(category iface.Category, key string, subKey string) bool {
 	if registration.Category != category {
 		return false
 	}
