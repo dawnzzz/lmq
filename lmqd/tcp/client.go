@@ -168,7 +168,7 @@ func (tcpClient *TcpClient) TimeoutMessage() {
 func (tcpClient *TcpClient) sendMessage(message iface.IMessage) error {
 	tcpClient.InFlightCount.Add(1)
 
-	data := protocol.MakeClientResponse(protocol.SendMsgID, message, nil)
+	data := protocol.MakeResponse(protocol.SendMsgID, message, nil)
 	err := tcpClient.connection.SendBufMsg(protocol.SendMsgID, data)
 	if err != nil {
 		return err

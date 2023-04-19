@@ -15,7 +15,7 @@ type RecvHandler struct {
 
 func (h *RecvHandler) Handle(response iface.IRequest) {
 	data := response.GetData()
-	resp := &protocol.ClientResponseBody{}
+	resp := &protocol.ResponseBody{}
 	_ = json.Unmarshal(data, resp)
 	fmt.Printf("recv:%#v\n", resp)
 }
@@ -26,7 +26,7 @@ type RecvMessageHandler struct {
 
 func (h *RecvMessageHandler) Handle(response iface.IRequest) {
 	data := response.GetData()
-	resp := &protocol.ClientResponseBody{Message: &message.Message{}}
+	resp := &protocol.ResponseBody{Message: &message.Message{}}
 	_ = json.Unmarshal(data, resp)
 	fmt.Printf("recv msg:%s\n", resp.Message.GetData())
 

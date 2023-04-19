@@ -12,7 +12,7 @@ type BaseHandler struct {
 }
 
 func (h *BaseHandler) SendClientResponse(request serveriface.IRequest, msg iface.IMessage, err error) error {
-	return request.GetConnection().SendBufMsg(h.TaskID, MakeClientResponse(h.TaskID, msg, err))
+	return request.GetConnection().SendBufMsg(h.TaskID, MakeResponse(h.TaskID, msg, err))
 }
 
 func (h *BaseHandler) SendOkResponse(request serveriface.IRequest) error {
