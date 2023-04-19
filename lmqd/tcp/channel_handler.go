@@ -18,23 +18,23 @@ func (handler *CreateChannelHandler) Handle(request serveriface.IRequest) {
 	// 反序列化，获取topic name, channel name
 	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	// 创建新的channel
 	topic, err := handler.BaseHandler.LmqDaemon.GetTopic(requestBody.TopicName)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 	_, err = topic.GetChannel(requestBody.ChannelName)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
-	_ = handler.SendOkClientResponse(request)
+	_ = handler.SendOkResponse(request)
 }
 
 // DeleteChannelHandler 删除channel
@@ -46,7 +46,7 @@ func (handler *DeleteChannelHandler) Handle(request serveriface.IRequest) {
 	// 反序列化，获取channel name
 	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
@@ -54,18 +54,18 @@ func (handler *DeleteChannelHandler) Handle(request serveriface.IRequest) {
 	topic, err := handler.LmqDaemon.GetExistingTopic(requestBody.TopicName)
 	if err != nil {
 		// 发生错误，返回错误信息
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	err = topic.DeleteExistingChannel(requestBody.ChannelName)
 	if err != nil {
 		// 发生错误，返回错误信息
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
-	_ = handler.SendOkClientResponse(request)
+	_ = handler.SendOkResponse(request)
 }
 
 // EmptyChannelHandler 清空channel
@@ -77,7 +77,7 @@ func (handler *EmptyChannelHandler) Handle(request serveriface.IRequest) {
 	// 反序列化，获取channel name
 	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
@@ -85,25 +85,25 @@ func (handler *EmptyChannelHandler) Handle(request serveriface.IRequest) {
 	topic, err := handler.LmqDaemon.GetExistingTopic(requestBody.TopicName)
 	if err != nil {
 		// 发生错误，返回错误信息
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	channel, err := topic.GetExistingChannel(requestBody.ChannelName)
 	if err != nil {
 		// 发生错误，返回错误信息
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	err = channel.Empty()
 	if err != nil {
 		// 发生错误，返回错误信息
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
-	_ = handler.SendOkClientResponse(request)
+	_ = handler.SendOkResponse(request)
 }
 
 // PauseChannelHandler 暂停channel
@@ -115,7 +115,7 @@ func (handler *PauseChannelHandler) Handle(request serveriface.IRequest) {
 	// 反序列化，获取channel name
 	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
@@ -123,25 +123,25 @@ func (handler *PauseChannelHandler) Handle(request serveriface.IRequest) {
 	topic, err := handler.LmqDaemon.GetExistingTopic(requestBody.TopicName)
 	if err != nil {
 		// 发生错误，返回错误信息
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	channel, err := topic.GetExistingChannel(requestBody.ChannelName)
 	if err != nil {
 		// 发生错误，返回错误信息
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	err = channel.Pause()
 	if err != nil {
 		// 发生错误，返回错误信息
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
-	_ = handler.SendOkClientResponse(request)
+	_ = handler.SendOkResponse(request)
 }
 
 // UnPauseChannelHandler 恢复channel
@@ -153,7 +153,7 @@ func (handler *UnPauseChannelHandler) Handle(request serveriface.IRequest) {
 	// 反序列化，获取channel name
 	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
@@ -161,23 +161,23 @@ func (handler *UnPauseChannelHandler) Handle(request serveriface.IRequest) {
 	topic, err := handler.LmqDaemon.GetExistingTopic(requestBody.TopicName)
 	if err != nil {
 		// 发生错误，返回错误信息
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	channel, err := topic.GetExistingChannel(requestBody.ChannelName)
 	if err != nil {
 		// 发生错误，返回错误信息
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	err = channel.UnPause()
 	if err != nil {
 		// 发生错误，返回错误信息
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
-	_ = handler.SendOkClientResponse(request)
+	_ = handler.SendOkResponse(request)
 }

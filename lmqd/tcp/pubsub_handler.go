@@ -21,26 +21,26 @@ func (handler *PubHandler) Handle(request serveriface.IRequest) {
 	// 获取client
 	client, _, err := getClient(handler.tcpServer, request)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	if !client.IsReadyPub() {
-		_ = handler.SendErrClientResponse(request, errors.New("not ready for pub"))
+		_ = handler.SendErrResponse(request, errors.New("not ready for pub"))
 		return
 	}
 
 	// 反序列化，获取topic name
 	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	// 获取topic
 	topic, err := handler.LmqDaemon.GetTopic(requestBody.TopicName)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
@@ -50,12 +50,12 @@ func (handler *PubHandler) Handle(request serveriface.IRequest) {
 	// 发布消息
 	err = topic.PutMessage(msg)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	client.MessageCount.Add(1)
-	_ = handler.SendOkClientResponse(request)
+	_ = handler.SendOkResponse(request)
 }
 
 // SubHandler 订阅一个topic、channel
@@ -68,40 +68,40 @@ func (handler *SubHandler) Handle(request serveriface.IRequest) {
 	// 获取client
 	client, clientID, err := getClient(handler.tcpServer, request)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	if !client.IsReadySub() {
-		_ = handler.SendErrClientResponse(request, errors.New("not ready for sub"))
+		_ = handler.SendErrResponse(request, errors.New("not ready for sub"))
 		return
 	}
 
 	// 反序列化，获取topic name
 	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	// 获取topic
 	topic, err := handler.LmqDaemon.GetTopic(requestBody.TopicName)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	// 获取channel
 	c, err := topic.GetChannel(requestBody.ChannelName)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
 	// 将用户添加到channel的用户组中
 	err = c.AddClient(clientID, client)
 	if err != nil {
-		_ = handler.SendErrClientResponse(request, err)
+		_ = handler.SendErrResponse(request, err)
 		return
 	}
 
@@ -109,7 +109,7 @@ func (handler *SubHandler) Handle(request serveriface.IRequest) {
 	client.Status.Store(statusSubscribed)
 	go client.messagePump()
 
-	_ = handler.SendOkClientResponse(request)
+	_ = handler.SendOkResponse(request)
 }
 
 func getClient(tcpServer *TcpServer, request serveriface.IRequest) (*TcpClient, uint64, error) {

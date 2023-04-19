@@ -15,10 +15,10 @@ func (h *BaseHandler) SendClientResponse(request serveriface.IRequest, msg iface
 	return request.GetConnection().SendBufMsg(h.TaskID, MakeClientResponse(h.TaskID, msg, err))
 }
 
-func (h *BaseHandler) SendOkClientResponse(request serveriface.IRequest) error {
+func (h *BaseHandler) SendOkResponse(request serveriface.IRequest) error {
 	return h.SendClientResponse(request, nil, nil)
 }
 
-func (h *BaseHandler) SendErrClientResponse(request serveriface.IRequest, err error) error {
+func (h *BaseHandler) SendErrResponse(request serveriface.IRequest, err error) error {
 	return h.SendClientResponse(request, nil, err)
 }
