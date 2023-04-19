@@ -116,118 +116,73 @@ func registerHandler(tcpServer *TcpServer, server serveriface.IServer, lmqDaemon
 		Pub and Sub
 	*/
 	server.RegisterHandler(protocol.PubID, &PubHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.PubID,
-		},
-		tcpServer: tcpServer,
+		BaseHandler: RegisterBaseHandler(protocol.PubID, lmqDaemon),
+		tcpServer:   tcpServer,
 	})
 
 	server.RegisterHandler(protocol.SubID, &SubHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.SubID,
-		},
-		tcpServer: tcpServer,
+		BaseHandler: RegisterBaseHandler(protocol.SubID, lmqDaemon),
+		tcpServer:   tcpServer,
 	})
 
 	/*
 		protocol
 	*/
 	server.RegisterHandler(protocol.RydID, &RydHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.RydID,
-		},
+		BaseHandler: RegisterBaseHandler(protocol.RydID, lmqDaemon),
 	})
 
 	server.RegisterHandler(protocol.FinID, &FinHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.FinID,
-		},
+		BaseHandler: RegisterBaseHandler(protocol.FinID, lmqDaemon),
 	})
 
 	server.RegisterHandler(protocol.ReqID, &ReqHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.ReqID,
-		},
+		BaseHandler: RegisterBaseHandler(protocol.ReqID, lmqDaemon),
 	})
 
 	/*
 		Topic Handler
 	*/
 	server.RegisterHandler(protocol.CreateTopicID, &CreateChannelHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.CreateTopicID,
-		},
+		BaseHandler: RegisterBaseHandler(protocol.CreateTopicID, lmqDaemon),
 	})
 
 	server.RegisterHandler(protocol.DeleteTopicID, &DeleteTopicHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.DeleteTopicID,
-		},
+		BaseHandler: RegisterBaseHandler(protocol.DeleteTopicID, lmqDaemon),
 	})
 
 	server.RegisterHandler(protocol.EmptyTopicID, &EmptyTopicHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.EmptyTopicID,
-		},
+		BaseHandler: RegisterBaseHandler(protocol.EmptyTopicID, lmqDaemon),
 	})
 
 	server.RegisterHandler(protocol.PauseTopicID, &PauseTopicHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.PauseTopicID,
-		},
+		BaseHandler: RegisterBaseHandler(protocol.PauseTopicID, lmqDaemon),
 	})
 
 	server.RegisterHandler(protocol.UnPauseTopicID, &UnPauseTopicHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.UnPauseTopicID,
-		},
+		BaseHandler: RegisterBaseHandler(protocol.UnPauseTopicID, lmqDaemon),
 	})
 
 	/*
 		Channel Handler
 	*/
 	server.RegisterHandler(protocol.CreateChannelID, &CreateChannelHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.CreateChannelID,
-		},
+		BaseHandler: RegisterBaseHandler(protocol.CreateChannelID, lmqDaemon),
 	})
 
 	server.RegisterHandler(protocol.DeleteChannelID, &DeleteChannelHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.DeleteChannelID,
-		},
+		BaseHandler: RegisterBaseHandler(protocol.DeleteChannelID, lmqDaemon),
 	})
 
 	server.RegisterHandler(protocol.EmptyChannelID, &EmptyChannelHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.EmptyChannelID,
-		},
+		BaseHandler: RegisterBaseHandler(protocol.EmptyChannelID, lmqDaemon),
 	})
 
 	server.RegisterHandler(protocol.PauseChannelID, &PauseChannelHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.PauseChannelID,
-		},
+		BaseHandler: RegisterBaseHandler(protocol.PauseChannelID, lmqDaemon),
 	})
 
 	server.RegisterHandler(protocol.UnPauseChannelID, &UnPauseChannelHandler{
-		BaseHandler: BaseHandler{
-			LmqDaemon: lmqDaemon,
-			TaskID:    protocol.UnPauseChannelID,
-		},
+		BaseHandler: RegisterBaseHandler(protocol.UnPauseChannelID, lmqDaemon),
 	})
 }

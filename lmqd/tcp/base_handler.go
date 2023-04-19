@@ -10,3 +10,11 @@ type BaseHandler struct {
 	protocol.BaseHandler
 	LmqDaemon iface.ILmqDaemon
 }
+
+func RegisterBaseHandler(taskID uint32, lmqd iface.ILmqDaemon) BaseHandler {
+	h := BaseHandler{}
+	h.TaskID = taskID
+	h.LmqDaemon = lmqd
+
+	return h
+}
