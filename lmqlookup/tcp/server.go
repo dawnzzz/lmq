@@ -32,6 +32,14 @@ func NewTcpServer() *TcpServer {
 		PrintBanner:      false,
 	})
 
+	server.SetOnConnStart(func(conn serveriface.IConnection) {
+
+	})
+
+	server.SetOnConnStop(func(conn serveriface.IConnection) {
+
+	})
+
 	tcpServer := &TcpServer{
 		server:   server,
 		ExitChan: make(chan struct{}),
