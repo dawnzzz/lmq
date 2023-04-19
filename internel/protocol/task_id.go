@@ -18,4 +18,8 @@ const (
 	RydID
 	FinID
 	ReqID
+
+	LookupIdentityID
+	RegisterID
+	UnRegisterID
 )

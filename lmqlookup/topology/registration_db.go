@@ -78,7 +78,7 @@ func (r *RegistrationDB) FindRegistrations(category iface.Category, key string, 
 	defer r.RUnlock()
 
 	if !r.needFilter(key, subKey) {
-		k := NewRegistration(category, key, subKey)
+		k := MakeRegistration(category, key, subKey)
 
 		if _, ok := r.registrationMap[k]; ok {
 			return Registrations{k}
@@ -104,7 +104,7 @@ func (r *RegistrationDB) FindProducers(category iface.Category, key string, subK
 	defer r.RUnlock()
 
 	if !r.needFilter(key, subKey) {
-		k := NewRegistration(category, key, subKey)
+		k := MakeRegistration(category, key, subKey)
 
 		return ProducerMap2Slice(r.registrationMap[k])
 	}
