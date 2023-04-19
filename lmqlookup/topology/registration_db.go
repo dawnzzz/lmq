@@ -1,48 +1,51 @@
-package innerdata
+package topology
 
-import "sync"
+import (
+	"github.com/dawnzzz/lmq/iface"
+	"sync"
+)
 
 type RegistrationDB struct {
 	sync.RWMutex
-	registrationMap map[Registration]ProducerMap
+	registrationMap map[iface.IRegistration]iface.ProducerMap
 }
 
 func NewRegistrationDB() *RegistrationDB {
 	return &RegistrationDB{
-		registrationMap: make(map[Registration]ProducerMap),
+		registrationMap: make(map[iface.IRegistration]iface.ProducerMap),
 	}
 }
 
-func (r *RegistrationDB) AddRegistration(key Registration) {
+func (r *RegistrationDB) AddRegistration(key iface.IRegistration) {
 	r.Lock()
 	defer r.Unlock()
 
 	_, ok := r.registrationMap[key]
 	if !ok {
-		r.registrationMap[key] = make(map[string]*Producer)
+		r.registrationMap[key] = make(map[string]iface.ILmqdProducer)
 	}
 }
 
-func (r *RegistrationDB) AddProducer(key Registration, p *Producer) bool {
+func (r *RegistrationDB) AddProducer(key iface.IRegistration, p iface.ILmqdProducer) bool {
 	r.Lock()
 	defer r.Unlock()
 
 	_, ok := r.registrationMap[key]
 	if !ok {
-		r.registrationMap[key] = make(map[string]*Producer)
+		r.registrationMap[key] = make(map[string]iface.ILmqdProducer)
 	}
 
 	producerMap := r.registrationMap[key]
-	_, found := producerMap[p.peerInfo.id]
+	_, found := producerMap[p.GetLmqdInfo().GetID()]
 	if !found {
-		producerMap[p.peerInfo.id] = p
+		producerMap[p.GetLmqdInfo().GetID()] = p
 	}
 
 	return !found
 }
 
 // RemoveProducer 返回是否有数据删除、剩余producer的数量
-func (r *RegistrationDB) RemoveProducer(key Registration, id string) (bool, int) {
+func (r *RegistrationDB) RemoveProducer(key iface.IRegistration, id string) (bool, int) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -60,7 +63,7 @@ func (r *RegistrationDB) RemoveProducer(key Registration, id string) (bool, int)
 	return removed, len(producerMap)
 }
 
-func (r *RegistrationDB) RemoveRegistration(key Registration) {
+func (r *RegistrationDB) RemoveRegistration(key iface.IRegistration) {
 	r.Lock()
 	defer r.Unlock()
 	delete(r.registrationMap, key)
@@ -70,16 +73,12 @@ func (r *RegistrationDB) needFilter(key string, subKey string) bool {
 	return key == "*" || subKey == "*"
 }
 
-func (r *RegistrationDB) FindRegistrations(category uint8, key string, subKey string) Registrations {
+func (r *RegistrationDB) FindRegistrations(category iface.Category, key string, subKey string) iface.IRegistrations {
 	r.RLock()
 	defer r.RUnlock()
 
 	if !r.needFilter(key, subKey) {
-		k := Registration{
-			Category: category,
-			Key:      key,
-			SubKey:   subKey,
-		}
+		k := NewRegistration(category, key, subKey)
 
 		if _, ok := r.registrationMap[k]; ok {
 			return Registrations{k}
@@ -100,21 +99,17 @@ func (r *RegistrationDB) FindRegistrations(category uint8, key string, subKey st
 	return results
 }
 
-func (r *RegistrationDB) FindProducers(category uint8, key string, subKey string) Producers {
+func (r *RegistrationDB) FindProducers(category iface.Category, key string, subKey string) iface.IProducers {
 	r.RLock()
 	defer r.RUnlock()
 
 	if !r.needFilter(key, subKey) {
-		k := Registration{
-			Category: category,
-			Key:      key,
-			SubKey:   subKey,
-		}
+		k := NewRegistration(category, key, subKey)
 
 		return ProducerMap2Slice(r.registrationMap[k])
 	}
 
-	producers := Producers{}
+	producers := LmqdProducers{}
 	idSet := map[string]struct{}{}
 	for registration, producerMap := range r.registrationMap {
 		if !registration.IsMatch(category, key, subKey) {
@@ -132,7 +127,7 @@ func (r *RegistrationDB) FindProducers(category uint8, key string, subKey string
 	return producers
 }
 
-func (r *RegistrationDB) LookupRegistrations(id string) Registrations {
+func (r *RegistrationDB) LookupRegistrations(id string) iface.IRegistrations {
 	r.RLock()
 	defer r.RUnlock()
 
