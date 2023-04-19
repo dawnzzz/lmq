@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/dawnzzz/hamble-tcp-server/hamble"
 	"github.com/dawnzzz/lmq/examples/lmqd_pubsub/handler"
+	"github.com/dawnzzz/lmq/internel/protocol"
 	"github.com/dawnzzz/lmq/lmqd/tcp"
 	"time"
 )
@@ -14,8 +15,8 @@ func main() {
 		return
 	}
 
-	client.RegisterHandler(tcp.CreateChannelID, &handler.RecvHandler{})
-	client.RegisterHandler(tcp.PubID, &handler.RecvHandler{})
+	client.RegisterHandler(protocol.CreateChannelID, &handler.RecvHandler{})
+	client.RegisterHandler(protocol.PubID, &handler.RecvHandler{})
 
 	go client.Start()
 
@@ -26,8 +27,8 @@ func main() {
 	}
 	data, _ := json.Marshal(request)
 
-	_ = client.GetConnection().SendBufMsg(tcp.CreateChannelID, data)
-	_ = client.GetConnection().SendBufMsg(tcp.PubID, data)
+	_ = client.GetConnection().SendBufMsg(protocol.CreateChannelID, data)
+	_ = client.GetConnection().SendBufMsg(protocol.PubID, data)
 
 	time.Sleep(2 * time.Second)
 }

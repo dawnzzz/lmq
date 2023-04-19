@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/dawnzzz/hamble-tcp-server/hamble"
 	"github.com/dawnzzz/lmq/examples/lmqd_pubsub/handler"
+	"github.com/dawnzzz/lmq/internel/protocol"
 	"github.com/dawnzzz/lmq/lmqd/tcp"
 )
 
@@ -12,9 +13,9 @@ func main() {
 	if err != nil {
 		return
 	}
-	client.RegisterHandler(tcp.SubID, &handler.RecvHandler{})
-	client.RegisterHandler(tcp.RydID, &handler.RecvHandler{})
-	client.RegisterHandler(tcp.SendMsgID, &handler.RecvMessageHandler{})
+	client.RegisterHandler(protocol.SubID, &handler.RecvHandler{})
+	client.RegisterHandler(protocol.RydID, &handler.RecvHandler{})
+	client.RegisterHandler(protocol.SendMsgID, &handler.RecvMessageHandler{})
 
 	go client.Start()
 
@@ -22,12 +23,12 @@ func main() {
 		TopicName:   "test_topic",
 		ChannelName: "test_channel",
 	})
-	_ = client.GetConnection().SendBufMsg(tcp.SubID, data)
+	_ = client.GetConnection().SendBufMsg(protocol.SubID, data)
 
 	data, _ = json.Marshal(tcp.RequestBody{
 		Count: 10,
 	})
-	_ = client.GetConnection().SendBufMsg(tcp.RydID, data)
+	_ = client.GetConnection().SendBufMsg(protocol.RydID, data)
 
 	select {}
 }

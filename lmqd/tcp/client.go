@@ -4,6 +4,7 @@ import (
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
 	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
+	"github.com/dawnzzz/lmq/internel/protocol"
 	"github.com/dawnzzz/lmq/lmqd/message"
 	"github.com/dawnzzz/lmq/logger"
 	"sync"
@@ -167,8 +168,8 @@ func (tcpClient *TcpClient) TimeoutMessage() {
 func (tcpClient *TcpClient) sendMessage(message iface.IMessage) error {
 	tcpClient.InFlightCount.Add(1)
 
-	data := makeResponse(SendMsgID, message, nil)
-	err := tcpClient.connection.SendBufMsg(SendMsgID, data)
+	data := makeResponse(protocol.SendMsgID, message, nil)
+	err := tcpClient.connection.SendBufMsg(protocol.SendMsgID, data)
 	if err != nil {
 		return err
 	}

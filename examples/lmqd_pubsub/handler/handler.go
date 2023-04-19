@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dawnzzz/hamble-tcp-server/hamble"
 	"github.com/dawnzzz/hamble-tcp-server/iface"
+	"github.com/dawnzzz/lmq/internel/protocol"
 	"github.com/dawnzzz/lmq/lmqd/message"
 	"github.com/dawnzzz/lmq/lmqd/tcp"
 )
@@ -35,5 +36,5 @@ func (h *RecvMessageHandler) Handle(response iface.IRequest) {
 		MessageID: msg.GetID(),
 	})
 
-	_ = response.GetConnection().SendBufMsg(tcp.FinID, msgResp)
+	_ = response.GetConnection().SendBufMsg(protocol.FinID, msgResp)
 }

@@ -7,26 +7,6 @@ import (
 	"github.com/dawnzzz/lmq/iface"
 )
 
-// task ID
-const (
-	PubID = uint32(iota)
-	SubID
-	SendMsgID
-	CreateTopicID
-	DeleteTopicID
-	EmptyTopicID
-	PauseTopicID
-	UnPauseTopicID
-	CreateChannelID
-	DeleteChannelID
-	EmptyChannelID
-	PauseChannelID
-	UnPauseChannelID
-	RydID
-	FinID
-	ReqID
-)
-
 type BaseHandler struct {
 	hamble.BaseHandler
 	LmqDaemon iface.ILmqDaemon
