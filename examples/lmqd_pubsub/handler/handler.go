@@ -7,7 +7,6 @@ import (
 	"github.com/dawnzzz/hamble-tcp-server/iface"
 	"github.com/dawnzzz/lmq/internel/protocol"
 	"github.com/dawnzzz/lmq/lmqd/message"
-	"github.com/dawnzzz/lmq/lmqd/tcp"
 )
 
 type RecvHandler struct {
@@ -16,7 +15,7 @@ type RecvHandler struct {
 
 func (h *RecvHandler) Handle(response iface.IRequest) {
 	data := response.GetData()
-	resp := &tcp.ResponseBody{}
+	resp := &protocol.ClientResponseBody{}
 	_ = json.Unmarshal(data, resp)
 	fmt.Printf("recv:%#v\n", resp)
 }
@@ -27,12 +26,12 @@ type RecvMessageHandler struct {
 
 func (h *RecvMessageHandler) Handle(response iface.IRequest) {
 	data := response.GetData()
-	resp := &tcp.ResponseBody{Message: &message.Message{}}
+	resp := &protocol.ClientResponseBody{Message: &message.Message{}}
 	_ = json.Unmarshal(data, resp)
 	fmt.Printf("recv msg:%s\n", resp.Message.GetData())
 
 	msg := resp.Message
-	msgResp, _ := json.Marshal(tcp.RequestBody{
+	msgResp, _ := json.Marshal(protocol.RequestBody{
 		MessageID: msg.GetID(),
 	})
 

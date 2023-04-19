@@ -2,6 +2,7 @@ package tcp
 
 import (
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
+	"github.com/dawnzzz/lmq/internel/protocol"
 )
 
 /*
@@ -15,20 +16,20 @@ type CreateTopicHandler struct {
 
 func (handler *CreateTopicHandler) Handle(request serveriface.IRequest) {
 	// 反序列化，获取topic name
-	requestBody, err := getRequestBody(request)
+	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	// 创建新的topic
 	_, err = handler.BaseHandler.LmqDaemon.GetTopic(requestBody.TopicName)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
-	_ = handler.SendOkResponse(request)
+	_ = handler.SendOkClientResponse(request)
 }
 
 // DeleteTopicHandler 删除topic
@@ -38,9 +39,9 @@ type DeleteTopicHandler struct {
 
 func (handler *DeleteTopicHandler) Handle(request serveriface.IRequest) {
 	// 反序列化，获取topic name
-	requestBody, err := getRequestBody(request)
+	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
@@ -48,11 +49,11 @@ func (handler *DeleteTopicHandler) Handle(request serveriface.IRequest) {
 	err = handler.LmqDaemon.DeleteExistingTopic(requestBody.TopicName)
 	if err != nil {
 		// 发生错误，返回错误信息
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
-	_ = handler.SendOkResponse(request)
+	_ = handler.SendOkClientResponse(request)
 }
 
 // EmptyTopicHandler 清空topic
@@ -62,26 +63,26 @@ type EmptyTopicHandler struct {
 
 func (handler *EmptyTopicHandler) Handle(request serveriface.IRequest) {
 	// 反序列化，获取topic name
-	requestBody, err := getRequestBody(request)
+	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	// 清空topic
 	topic, err := handler.LmqDaemon.GetExistingTopic(requestBody.TopicName)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	err = topic.Empty()
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
-	_ = handler.SendOkResponse(request)
+	_ = handler.SendOkClientResponse(request)
 }
 
 // PauseTopicHandler 暂停topic
@@ -91,26 +92,26 @@ type PauseTopicHandler struct {
 
 func (handler *PauseTopicHandler) Handle(request serveriface.IRequest) {
 	// 反序列化，获取topic name
-	requestBody, err := getRequestBody(request)
+	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	// 暂停topic
 	topic, err := handler.LmqDaemon.GetExistingTopic(requestBody.TopicName)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	err = topic.Pause()
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
-	_ = handler.SendOkResponse(request)
+	_ = handler.SendOkClientResponse(request)
 }
 
 // UnPauseTopicHandler 恢复topic
@@ -120,24 +121,24 @@ type UnPauseTopicHandler struct {
 
 func (handler *UnPauseTopicHandler) Handle(request serveriface.IRequest) {
 	// 反序列化，获取topic name
-	requestBody, err := getRequestBody(request)
+	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	// 恢复topic
 	topic, err := handler.LmqDaemon.GetExistingTopic(requestBody.TopicName)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	err = topic.UnPause()
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
-	_ = handler.SendOkResponse(request)
+	_ = handler.SendOkClientResponse(request)
 }

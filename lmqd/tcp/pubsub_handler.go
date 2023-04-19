@@ -3,6 +3,7 @@ package tcp
 import (
 	"errors"
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
+	"github.com/dawnzzz/lmq/internel/protocol"
 	"github.com/dawnzzz/lmq/lmqd/message"
 )
 
@@ -20,26 +21,26 @@ func (handler *PubHandler) Handle(request serveriface.IRequest) {
 	// 获取client
 	client, _, err := getClient(handler.tcpServer, request)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	if !client.IsReadyPub() {
-		_ = handler.SendErrResponse(request, errors.New("not ready for pub"))
+		_ = handler.SendErrClientResponse(request, errors.New("not ready for pub"))
 		return
 	}
 
 	// 反序列化，获取topic name
-	requestBody, err := getRequestBody(request)
+	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	// 获取topic
 	topic, err := handler.LmqDaemon.GetTopic(requestBody.TopicName)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
@@ -49,12 +50,12 @@ func (handler *PubHandler) Handle(request serveriface.IRequest) {
 	// 发布消息
 	err = topic.PutMessage(msg)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	client.MessageCount.Add(1)
-	_ = handler.SendOkResponse(request)
+	_ = handler.SendOkClientResponse(request)
 }
 
 // SubHandler 订阅一个topic、channel
@@ -67,40 +68,40 @@ func (handler *SubHandler) Handle(request serveriface.IRequest) {
 	// 获取client
 	client, clientID, err := getClient(handler.tcpServer, request)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	if !client.IsReadySub() {
-		_ = handler.SendErrResponse(request, errors.New("not ready for sub"))
+		_ = handler.SendErrClientResponse(request, errors.New("not ready for sub"))
 		return
 	}
 
 	// 反序列化，获取topic name
-	requestBody, err := getRequestBody(request)
+	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	// 获取topic
 	topic, err := handler.LmqDaemon.GetTopic(requestBody.TopicName)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	// 获取channel
 	c, err := topic.GetChannel(requestBody.ChannelName)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
 	// 将用户添加到channel的用户组中
 	err = c.AddClient(clientID, client)
 	if err != nil {
-		_ = handler.SendErrResponse(request, err)
+		_ = handler.SendErrClientResponse(request, err)
 		return
 	}
 
@@ -108,7 +109,7 @@ func (handler *SubHandler) Handle(request serveriface.IRequest) {
 	client.Status.Store(statusSubscribed)
 	go client.messagePump()
 
-	_ = handler.SendOkResponse(request)
+	_ = handler.SendOkClientResponse(request)
 }
 
 func getClient(tcpServer *TcpServer, request serveriface.IRequest) (*TcpClient, uint64, error) {

@@ -5,7 +5,6 @@ import (
 	"github.com/dawnzzz/hamble-tcp-server/hamble"
 	"github.com/dawnzzz/lmq/examples/lmqd_pubsub/handler"
 	"github.com/dawnzzz/lmq/internel/protocol"
-	"github.com/dawnzzz/lmq/lmqd/tcp"
 )
 
 func main() {
@@ -19,13 +18,13 @@ func main() {
 
 	go client.Start()
 
-	data, _ := json.Marshal(tcp.RequestBody{
+	data, _ := json.Marshal(protocol.RequestBody{
 		TopicName:   "test_topic",
 		ChannelName: "test_channel",
 	})
 	_ = client.GetConnection().SendBufMsg(protocol.SubID, data)
 
-	data, _ = json.Marshal(tcp.RequestBody{
+	data, _ = json.Marshal(protocol.RequestBody{
 		Count: 10,
 	})
 	_ = client.GetConnection().SendBufMsg(protocol.RydID, data)

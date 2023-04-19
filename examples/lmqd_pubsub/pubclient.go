@@ -5,7 +5,6 @@ import (
 	"github.com/dawnzzz/hamble-tcp-server/hamble"
 	"github.com/dawnzzz/lmq/examples/lmqd_pubsub/handler"
 	"github.com/dawnzzz/lmq/internel/protocol"
-	"github.com/dawnzzz/lmq/lmqd/tcp"
 	"time"
 )
 
@@ -20,7 +19,7 @@ func main() {
 
 	go client.Start()
 
-	request := tcp.RequestBody{
+	request := protocol.RequestBody{
 		TopicName:   "test_topic",
 		ChannelName: "test_channel",
 		MessageData: []byte("hello"),
