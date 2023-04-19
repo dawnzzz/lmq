@@ -12,6 +12,10 @@ type RequestBody struct {
 	MessageData []byte          `json:"message_data,omitempty"`
 	Count       int64           `json:"count,omitempty"`
 	MessageID   iface.MessageID `json:"message_id,omitempty"`
+
+	RemoteAddress string `json:"remote_address,omitempty"`
+	Hostname      string `json:",omitempty"`
+	TcpPort       int    `json:"tcp_port,omitempty"`
 }
 
 func GetRequestBody(request iface2.IRequest) (*RequestBody, error) {

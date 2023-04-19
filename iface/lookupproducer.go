@@ -5,6 +5,7 @@ import "time"
 // ILmqdInfo 与lmq lookup相连的lmqd信息
 type ILmqdInfo interface {
 	GetID() string
+	SetID(id string)
 	GetLastUpdate() time.Time
 	SetLastUpdate(updateTime time.Time)
 	GetRemoteAddress() string
