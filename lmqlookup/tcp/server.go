@@ -145,4 +145,9 @@ func registerHandler(server serveriface.IServer, registrationDB iface.IRegistrat
 	server.RegisterHandler(protocol.CreateChannelID, &CreateChannel{
 		RegisterBaseHandler(protocol.CreateChannelID, registrationDB),
 	})
+
+	// delete channel
+	server.RegisterHandler(protocol.DeleteChannelID, &DeleteChannel{
+		RegisterBaseHandler(protocol.DeleteChannelID, registrationDB),
+	})
 }
