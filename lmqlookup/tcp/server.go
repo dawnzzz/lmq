@@ -120,4 +120,9 @@ func registerHandler(server serveriface.IServer, registrationDB iface.IRegistrat
 	server.RegisterHandler(protocol.TopicsID, &TopicsHandler{
 		RegisterBaseHandler(protocol.TopicsID, registrationDB),
 	})
+
+	// channels
+	server.RegisterHandler(protocol.ChannelsID, &ChannelsHandlers{
+		RegisterBaseHandler(protocol.ChannelsID, registrationDB),
+	})
 }
