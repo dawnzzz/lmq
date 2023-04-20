@@ -130,4 +130,9 @@ func registerHandler(server serveriface.IServer, registrationDB iface.IRegistrat
 	server.RegisterHandler(protocol.LookupID, &LookupHandler{
 		RegisterBaseHandler(protocol.LookupID, registrationDB),
 	})
+
+	// create topic
+	server.RegisterHandler(protocol.CreateTopicID, &CreateTopicHandler{
+		RegisterBaseHandler(protocol.CreateTopicID, registrationDB),
+	})
 }
