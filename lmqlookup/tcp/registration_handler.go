@@ -23,10 +23,12 @@ func (h *RegisterHandler) Handle(request serveriface.IRequest) {
 	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
 		_ = h.SendErrResponse(request, err)
+		return
 	}
 
 	if requestBody.TopicName == "" {
 		_ = h.SendErrResponse(request, errors.New("register/unregister command topic name is not empty"))
+		return
 	}
 
 	// 注册topic
@@ -59,10 +61,12 @@ func (h *UnRegisterHandler) Handle(request serveriface.IRequest) {
 	requestBody, err := protocol.GetRequestBody(request)
 	if err != nil {
 		_ = h.SendErrResponse(request, err)
+		return
 	}
 
 	if requestBody.TopicName == "" {
 		_ = h.SendErrResponse(request, errors.New("register/unregister command topic name is not empty"))
+		return
 	}
 
 	topicName := requestBody.TopicName
