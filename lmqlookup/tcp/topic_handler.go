@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"errors"
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
 	"github.com/dawnzzz/lmq/iface"
 	"github.com/dawnzzz/lmq/internel/protocol"
@@ -77,6 +78,43 @@ func (h *DeleteTopicHandler) Handle(request serveriface.IRequest) {
 	for i := 0; i < topicRegs.Len(); i++ {
 		topicReg := topicRegs.GetItem(i)
 		h.registrationDB.RemoveRegistration(topicReg)
+	}
+
+	_ = h.SendOkResponse(request)
+}
+
+type TombstoneHandler struct {
+	*BaseHandler
+}
+
+func (h *TombstoneHandler) Handle(request serveriface.IRequest) {
+	// 反序列化，得到topic name, remoteAddress, hostname, port
+	requestBody, err := protocol.GetRequestBody(request)
+	if err != nil {
+		_ = h.SendErrResponse(request, err)
+		return
+	}
+
+	// 验证topic name是否有效
+	if !utils.TopicOrChannelNameIsValid(requestBody.TopicName) {
+		_ = h.SendErrResponse(request, e.ErrTopicNameInValid)
+		return
+	}
+
+	// remoteAddress hostname port为空
+	if requestBody.RemoteAddress == "" || requestBody.Hostname == "" || requestBody.TcpPort == 0 {
+		_ = h.SendErrResponse(request, errors.New("tombstone topic command args invalid"))
+		return
+	}
+
+	// tombstone
+	producers := h.registrationDB.FindProducers(iface.TopicCategory, requestBody.TopicName, "")
+	for i := 0; i < producers.Len(); i++ {
+		p := producers.GetItem(i)
+		info := p.GetLmqdInfo()
+		if info.GetRemoteAddress() == requestBody.RemoteAddress && info.GetHostName() == requestBody.Hostname && info.GetTcpPort() == requestBody.TcpPort {
+			p.Tombstone()
+		}
 	}
 
 	_ = h.SendOkResponse(request)

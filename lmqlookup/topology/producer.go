@@ -74,3 +74,15 @@ func (producers LmqdProducers) LmqdInfo() []iface.ILmqdInfo {
 	}
 	return results
 }
+
+func (producers LmqdProducers) Len() int {
+	return len(producers)
+}
+
+func (producers LmqdProducers) GetItem(index int) iface.ILmqdProducer {
+	if index < 0 || index >= producers.Len() {
+		return nil
+	}
+
+	return producers[index]
+}

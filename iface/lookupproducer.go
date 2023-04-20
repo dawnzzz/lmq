@@ -28,6 +28,8 @@ type ILmqdProducer interface {
 type IProducers interface {
 	FilterByActive(inactivityTimeout time.Duration, tombstoneLifetime time.Duration) IProducers
 	LmqdInfo() []ILmqdInfo
+	Len() int
+	GetItem(index int) ILmqdProducer
 }
 
 type ProducerMap map[string]ILmqdProducer
