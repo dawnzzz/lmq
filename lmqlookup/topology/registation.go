@@ -89,3 +89,15 @@ func (registrations Registrations) SubKeys() []string {
 
 	return subKeys
 }
+
+func (registrations Registrations) Len() int {
+	return len(registrations)
+}
+
+func (registrations Registrations) GetItem(index int) iface.IRegistration {
+	if index < 0 || index >= registrations.Len() {
+		return nil
+	}
+
+	return registrations[index]
+}

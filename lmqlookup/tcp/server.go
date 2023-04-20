@@ -135,4 +135,9 @@ func registerHandler(server serveriface.IServer, registrationDB iface.IRegistrat
 	server.RegisterHandler(protocol.CreateTopicID, &CreateTopicHandler{
 		RegisterBaseHandler(protocol.CreateTopicID, registrationDB),
 	})
+
+	// delete topic
+	server.RegisterHandler(protocol.DeleteTopicID, &DeleteTopicHandler{
+		RegisterBaseHandler(protocol.DeleteTopicID, registrationDB),
+	})
 }

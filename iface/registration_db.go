@@ -21,6 +21,8 @@ type IRegistrations interface {
 	Filter(category Category, key string, subKey string) IRegistrations
 	Keys() []string
 	SubKeys() []string
+	Len() int
+	GetItem(index int) IRegistration
 }
 
 type IRegistrationDB interface {
