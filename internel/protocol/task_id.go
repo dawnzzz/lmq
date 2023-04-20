@@ -19,7 +19,11 @@ const (
 	FinID
 	ReqID
 
-	LookupIdentityID
+	IdentityID
 	RegisterID
 	UnRegisterID
+	LookupID
+	TopicsID
+	ChannelsID
+	TombstoneTopicID
 )

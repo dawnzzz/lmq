@@ -102,8 +102,8 @@ func (tcpServer *TcpServer) Stop() {
 
 func registerHandler(server serveriface.IServer, registrationDB iface.IRegistrationDB) {
 	// identity
-	server.RegisterHandler(protocol.LookupIdentityID, &IdentityHandler{
-		RegisterBaseHandler(protocol.LookupIdentityID, registrationDB),
+	server.RegisterHandler(protocol.IdentityID, &IdentityHandler{
+		RegisterBaseHandler(protocol.IdentityID, registrationDB),
 	})
 
 	// register
@@ -114,5 +114,10 @@ func registerHandler(server serveriface.IServer, registrationDB iface.IRegistrat
 	// unregister
 	server.RegisterHandler(protocol.UnRegisterID, &UnRegisterHandler{
 		RegisterBaseHandler(protocol.UnRegisterID, registrationDB),
+	})
+
+	// topics
+	server.RegisterHandler(protocol.TopicsID, &TopicsHandler{
+		RegisterBaseHandler(protocol.TopicsID, registrationDB),
 	})
 }
