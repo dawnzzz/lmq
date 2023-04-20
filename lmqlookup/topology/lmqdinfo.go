@@ -67,3 +67,16 @@ func (info *LmqdInfo) GetTcpPort() int {
 func (info *LmqdInfo) SetTcpPort(tcpPort int) {
 	info.TcpPort = tcpPort
 }
+
+func (info *LmqdInfo) Equals(anotherInfo iface.ILmqdInfo) bool {
+	if info == anotherInfo {
+		return true
+	}
+
+	info2, ok := anotherInfo.(*LmqdInfo)
+	if !ok {
+		return false
+	}
+
+	return *info == *info2
+}

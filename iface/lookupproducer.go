@@ -14,6 +14,7 @@ type ILmqdInfo interface {
 	SetHostName(hostname string)
 	GetTcpPort() int
 	SetTcpPort(tcpPort int)
+	Equals(anotherInfo ILmqdInfo) bool
 }
 
 // ILmqdProducer 与lmq lookup相连的lmqd

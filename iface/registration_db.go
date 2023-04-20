@@ -3,8 +3,9 @@ package iface
 type Category uint8
 
 const (
-	TopicCategory   = Category(iota)
-	ChannelCategory = Category(iota)
+	TopicCategory = Category(iota)
+	ChannelCategory
+	LmqdCategory
 )
 
 type IRegistration interface {
