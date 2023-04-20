@@ -3,6 +3,7 @@ package tcp
 import (
 	"errors"
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
+	"github.com/dawnzzz/lmq/iface"
 	"github.com/dawnzzz/lmq/internel/protocol"
 	"github.com/dawnzzz/lmq/lmqlookup/topology"
 )
@@ -35,6 +36,7 @@ func (h *IdentityHandler) Handle(request serveriface.IRequest) {
 	info := topology.NewLmqdInfo(request.GetConnection().RemoteAddr(), requestBody.RemoteAddress, requestBody.Hostname, requestBody.TcpPort)
 	// info存入上下文中，设置连接身份
 	producer := topology.NewLmqProducer(info)
+	h.registrationDB.AddProducer(topology.MakeRegistration(iface.LmqdCategory, "", ""), producer) // 存入db中
 	request.GetConnection().SetProperty(producerPropertyKey, producer)
 	request.GetConnection().SetProperty(statusPropertyKey, statusLmqd)
 
