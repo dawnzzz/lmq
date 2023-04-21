@@ -217,6 +217,11 @@ func (topic *Topic) IsPausing() bool {
 	return topic.isPausing.Load()
 }
 
+// IsExiting 返回是否处于退出状态
+func (topic *Topic) IsExiting() bool {
+	return topic.isExiting.Load()
+}
+
 // GenerateGUID 生成一个message ID
 func (topic *Topic) GenerateGUID() iface.MessageID {
 	return topic.guidFactory.NewMessageID()

@@ -8,6 +8,7 @@ type ITopic interface {
 	Close() error    // 关闭topic
 	Delete() error   // 关闭并删除topic
 	IsPausing() bool // 返回是否处于暂停状态
+	IsExiting() bool // 返回是否处于关闭状态
 
 	GenerateGUID() MessageID // 生成一个messageID
 
