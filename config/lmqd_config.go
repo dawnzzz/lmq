@@ -29,6 +29,9 @@ type LmqdConfig struct {
 
 	MessageTimeout    time.Duration
 	ScanQueueInterval time.Duration
+
+	HeartBeatInterval time.Duration // 向lmq lookup发送心跳的时间间隔
+	LookupAddresses   []string      // lmq lookup的地址，可配置多个lmq lookup
 }
 
 func init() {
@@ -55,5 +58,8 @@ func init() {
 
 		MessageTimeout:    5 * time.Second,
 		ScanQueueInterval: 100 * time.Millisecond,
+
+		HeartBeatInterval: 60 * time.Second,
+		LookupAddresses:   []string{"127.0.0.1:6300"},
 	}
 }
