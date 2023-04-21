@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"errors"
 	"github.com/dawnzzz/hamble-tcp-server/conf"
 	"github.com/dawnzzz/hamble-tcp-server/hamble"
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
@@ -8,8 +9,8 @@ import (
 	"github.com/dawnzzz/lmq/iface"
 	"github.com/dawnzzz/lmq/internel/protocol"
 	"github.com/dawnzzz/lmq/logger"
-	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type status uint8
@@ -29,9 +30,6 @@ type TcpServer struct {
 	server serveriface.IServer
 
 	registrationDB iface.IRegistrationDB // lmq lookup中用于记录lmqd拓扑的结构
-
-	connStatusMap     map[serveriface.IConnection]status // 记录连接的状态
-	connStatusMapLock sync.RWMutex
 
 	IsClosing atomic.Bool
 	ExitChan  chan struct{}
@@ -66,26 +64,61 @@ func NewTcpServer(registrationDB iface.IRegistrationDB) *TcpServer {
 	server.SetOnConnStart(func(conn serveriface.IConnection) {
 		logger.Infof("on conn start hook func %s", conn.RemoteAddr())
 		// 连接开始时记录连接状态
-		tcpServer.connStatusMapLock.Lock()
-		tcpServer.connStatusMap[conn] = statusInit
-		tcpServer.connStatusMapLock.Unlock()
-
 		conn.SetProperty(statusPropertyKey, statusInit)
 	})
 
 	server.SetOnConnStop(func(conn serveriface.IConnection) {
 		logger.Infof("on conn end hook func from %s", conn.RemoteAddr())
-		// 连接结束后删除连接状态
-		tcpServer.connStatusMapLock.Lock()
-		delete(tcpServer.connStatusMap, conn)
-		tcpServer.connStatusMapLock.Unlock()
+		// 连接结束后，如果是lmqd，则删除producer
+		if conn.GetProperty(statusPropertyKey) == statusLmqd {
+			producer, ok := conn.GetProperty(producerPropertyKey).(iface.ILmqdProducer)
+			if !ok {
+				return
+			}
+
+			// 从所有的registration中删除producer
+			registrationDB.RemoveProducerFromAllRegistrations(producer.GetLmqdInfo().GetID())
+		}
 	})
 
 	return tcpServer
 }
 
 func (tcpServer *TcpServer) Start() {
+	// 开启心跳检测
+	tcpServer.server.StartHeartbeatWithOption(serveriface.CheckerOption{
+		Interval: config.GlobalLmqLookupConfig.InactiveProducerTimeout,
+		HeartBeatFunc: func(_ serveriface.IConnection) error {
+			// lmq lookup不会主动发送心跳消息
+			return nil
+		},
+		MsgID: protocol.PingID,
+		Handler: &pingHandler{
+			RegisterBaseHandler(protocol.PingID, tcpServer.registrationDB),
+		},
+	})
+
 	tcpServer.server.Start()
+}
+
+// 定义收到心跳消息后的行为
+type pingHandler struct {
+	*BaseHandler
+}
+
+func (h *pingHandler) Handle(request serveriface.IRequest) {
+	// 更新活跃时间
+	now := time.Now()
+	producer, ok := request.GetConnection().GetProperty(producerPropertyKey).(iface.ILmqdProducer)
+	if !ok {
+		_ = h.SendErrResponse(request, errors.New("not identify"))
+		return
+	}
+	request.GetConnection().SetProperty(statusPropertyKey, statusLmqd) // 连接身份更改为lmqd
+	producer.GetLmqdInfo().SetLastUpdate(now)
+
+	// 收到ping后，返回ok
+	_ = h.SendOkResponse(request)
 }
 
 func (tcpServer *TcpServer) Stop() {

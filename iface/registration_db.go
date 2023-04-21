@@ -34,4 +34,5 @@ type IRegistrationDB interface {
 	FindRegistrations(category Category, key string, subKey string) IRegistrations
 	FindProducers(category Category, key string, subKey string) IProducers
 	LookupRegistrations(id string) IRegistrations
+	RemoveProducerFromAllRegistrations(id string)
 }

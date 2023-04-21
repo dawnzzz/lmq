@@ -19,6 +19,7 @@ const (
 	FinID
 	ReqID
 
+	PingID
 	IdentityID
 	RegisterID
 	UnRegisterID

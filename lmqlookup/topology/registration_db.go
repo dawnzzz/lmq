@@ -140,3 +140,19 @@ func (r *RegistrationDB) LookupRegistrations(id string) iface.IRegistrations {
 
 	return results
 }
+
+func (r *RegistrationDB) RemoveProducerFromAllRegistrations(id string) {
+	r.Lock()
+	defer r.Unlock()
+
+	for registration, producerMap := range r.registrationMap {
+		if _, exists := producerMap[id]; exists {
+			_, ok := r.registrationMap[registration]
+			if !ok {
+				continue
+			}
+
+			delete(producerMap, id)
+		}
+	}
+}
