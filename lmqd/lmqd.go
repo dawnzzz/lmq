@@ -2,8 +2,10 @@ package lmqd
 
 import (
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
+	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
 	"github.com/dawnzzz/lmq/internel/utils"
+	"github.com/dawnzzz/lmq/lmqd/lookup"
 	"github.com/dawnzzz/lmq/lmqd/tcp"
 	"github.com/dawnzzz/lmq/lmqd/topic"
 	"github.com/dawnzzz/lmq/logger"
@@ -28,6 +30,8 @@ type LmqDaemon struct {
 	clientIDLock     sync.RWMutex
 	isLoading        atomic.Bool
 
+	lookupManager iface.ILookupManager
+
 	status     atomic.Uint32           // 当前运行状态：starting、running、closing
 	topics     map[string]iface.ITopic // 保存所有的topic字典
 	topicsLock sync.RWMutex            // 控制对topic字典的互斥访问
@@ -48,13 +52,15 @@ func NewLmqDaemon() iface.ILmqDaemon {
 		exitChan: make(chan struct{}, 1),
 	}
 	lmqd.tcpServer = tcp.NewTcpServer(lmqd)
+	lmqd.lookupManager = lookup.NewManager(config.GlobalLmqdConfig.LookupAddresses)
 	lmqd.status.Store(starting)
 
 	return lmqd
 }
 
 func (lmqd *LmqDaemon) Main() {
-	go lmqd.tcpServer.Start() // 开启TCP服务器
+	go lmqd.tcpServer.Start()  // 开启TCP服务器
+	lmqd.lookupManager.Start() // 开启lookup manager
 	lmqd.status.Store(running)
 	logger.Info("lmqd is running")
 
@@ -85,6 +91,9 @@ func (lmqd *LmqDaemon) Exit() {
 
 	// 关闭tcp服务器
 	lmqd.tcpServer.Stop()
+
+	// 关闭lookup manager
+	lmqd.lookupManager.Close()
 
 	// 关闭所有得topic
 	for _, t := range lmqd.topics {
@@ -198,16 +207,23 @@ func (lmqd *LmqDaemon) GenerateClientID(conn serveriface.IConnection) uint64 {
 	return lmqd.clientIDSequence
 }
 
-// Notify 通知lmqd进行持久化
-func (lmqd *LmqDaemon) Notify(persist bool) {
-	if !persist && lmqd.isLoading.Load() {
-		return
-	}
+// Notify 通知lmqd进行持久化，通知lookup
+func (lmqd *LmqDaemon) Notify(v interface{}, persist bool) {
+	isLoading := lmqd.isLoading.Load()
 
 	lmqd.waitGroup.Wrap(func() {
-		err := lmqd.PersistMetaData()
-		if err != nil {
-			logger.Errorf("lmqd PersistMetaData failed in Notify, err: %s", err.Error())
+		select {
+		case <-lmqd.exitChan:
+		case lmqd.lookupManager.GetNotifyChan() <- v:
+			if !persist && isLoading {
+				return
+			}
+
+			err := lmqd.PersistMetaData()
+			if err != nil {
+				logger.Errorf("lmqd PersistMetaData failed in Notify, err: %s", err.Error())
+			}
 		}
+
 	})
 }

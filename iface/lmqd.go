@@ -12,7 +12,7 @@ type ILmqDaemon interface {
 
 	GenerateClientID(conn serveriface.IConnection) uint64 // 生成一个clientID
 
-	Notify(persist bool)    // 通知lmqd进行持久化
-	LoadMetaData() error    // 加载元数据信息
-	PersistMetaData() error // 持久化元数据信息
+	Notify(v interface{}, persist bool) // 通知lmqd进行持久化，通知lookup
+	LoadMetaData() error                // 加载元数据信息
+	PersistMetaData() error             // 持久化元数据信息
 }

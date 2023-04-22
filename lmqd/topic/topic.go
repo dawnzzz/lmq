@@ -83,7 +83,7 @@ func NewTopic(lmqd iface.ILmqDaemon, name string, deleteCallback func(topic ifac
 
 	go topic.messagePump()
 
-	lmqd.Notify(!topic.isTemporary)
+	lmqd.Notify(topic, !topic.isTemporary)
 
 	return topic
 }
@@ -156,7 +156,7 @@ func (topic *Topic) exit(deleted bool) error {
 		// 清空backend队列
 		err := topic.backendQueue.Delete()
 
-		topic.lmqd.Notify(!topic.isTemporary)
+		topic.lmqd.Notify(topic, !topic.isTemporary)
 
 		return err
 	}

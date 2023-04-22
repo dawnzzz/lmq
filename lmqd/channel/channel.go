@@ -81,7 +81,7 @@ func NewChannel(lmqd iface.ILmqDaemon, topicName, name string, deleteCallback fu
 
 	go channel.queueScanWorker()
 
-	channel.lmqd.Notify(!channel.isTemporary)
+	channel.lmqd.Notify(channel, !channel.isTemporary)
 
 	return channel
 }
@@ -176,7 +176,7 @@ func (channel *Channel) exit(deleted bool) error {
 		// 接着删除disk queue
 		err := channel.backendQueue.Delete()
 
-		channel.lmqd.Notify(!channel.isTemporary)
+		channel.lmqd.Notify(channel, !channel.isTemporary)
 
 		return err
 	}
