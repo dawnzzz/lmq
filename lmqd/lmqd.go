@@ -12,6 +12,7 @@ import (
 	"github.com/dawnzzz/lmq/pkg/e"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -89,6 +90,8 @@ func (lmqd *LmqDaemon) Exit() {
 		return
 	}
 
+	lmqd.waitGroup.Wait()
+
 	// 关闭tcp服务器
 	lmqd.tcpServer.Stop()
 
@@ -102,8 +105,6 @@ func (lmqd *LmqDaemon) Exit() {
 
 	// 持久化元数据信息
 	_ = lmqd.PersistMetaData()
-
-	lmqd.waitGroup.Wait()
 
 	select {
 	case lmqd.exitChan <- struct{}{}:
@@ -145,6 +146,18 @@ func (lmqd *LmqDaemon) GetTopic(name string) (iface.ITopic, error) {
 	}
 	t := topic.NewTopic(lmqd, name, deleteCallback)
 	lmqd.topics[name] = t
+
+	// 在lmq look查询channels
+	lmqd.waitGroup.Wrap(func() {
+		channelNames := lmqd.lookupManager.GetLookupTopicChannels(name)
+		for _, channelName := range channelNames {
+			if strings.HasSuffix(channelName, "#tmp") {
+				// 在没有消费者时不创建临时channel
+				continue
+			}
+			_, _ = t.GetChannel(channelName)
+		}
+	})
 
 	if lmqd.isLoading.Load() {
 		return t, nil

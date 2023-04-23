@@ -31,6 +31,11 @@ func NewManager(lookupAddresses []string) iface.ILookupManager {
 }
 
 func (m *Manager) Start() {
+	for _, peer := range m.lookupPeers {
+		if peer != nil {
+			peer.start()
+		}
+	}
 	go m.lookupLoop()
 }
 
@@ -94,7 +99,7 @@ func (m *Manager) lookupLoop() {
 			for _, peer := range m.lookupPeers {
 				m.Wrap(func() {
 					if peer != nil {
-						_ = peer.doSendRegistration(unRegister, topicName, channelName)
+						_ = peer.sendRegistration(unRegister, topicName, channelName)
 					}
 				})
 			}
@@ -102,4 +107,18 @@ func (m *Manager) lookupLoop() {
 	}
 
 exit:
+}
+
+func (m *Manager) GetLookupTopicChannels(topicName string) []string {
+	channels := make([]string, 0, 10)
+	for _, peer := range m.lookupPeers {
+		if peer != nil {
+			c := peer.getTopicChannels(topicName)
+			channels = append(channels, c...)
+		}
+	}
+
+	// 去重
+	channels = utils.Uniq(channels)
+	return channels
 }

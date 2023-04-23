@@ -5,4 +5,5 @@ type ILookupManager interface {
 	Start()
 	Close()
 	GetNotifyChan() chan interface{}
+	GetLookupTopicChannels(topicName string) []string
 }
