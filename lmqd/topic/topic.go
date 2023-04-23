@@ -264,9 +264,9 @@ func (topic *Topic) GetChannel(name string) (iface.IChannel, error) {
 	// 不存在则新建一个topic
 	// 换一个更细粒度的锁
 	topic.channelsLock.Lock()
-	defer topic.channelsLock.Unlock()
 	if c, exist := topic.channels[name]; exist {
 		// channel已经存在，直接返回
+		topic.channelsLock.Unlock()
 		return c, nil
 	}
 
@@ -275,6 +275,7 @@ func (topic *Topic) GetChannel(name string) (iface.IChannel, error) {
 	}
 	c := channel.NewChannel(topic.lmqd, topic.name, name, deleteCallback)
 	topic.channels[name] = c
+	topic.channelsLock.Unlock()
 	topic.updateChan <- struct{}{}
 
 	return c, nil
