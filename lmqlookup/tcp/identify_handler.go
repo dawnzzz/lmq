@@ -13,7 +13,7 @@ type IdentityHandler struct {
 }
 
 func (h *IdentityHandler) Handle(request serveriface.IRequest) {
-	if statusInit != request.GetConnection().GetProperty(statusPropertyKey).(status) {
+	if curStatus, ok := request.GetConnection().GetProperty(statusPropertyKey).(status); !ok || statusInit != curStatus {
 		// 发起identity的阶段不对
 		_ = h.SendErrResponse(request, errors.New("lookup status invalid"))
 		return
