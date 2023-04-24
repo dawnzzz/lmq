@@ -37,7 +37,7 @@ func (info *LmqdInfo) SetID(id string) {
 
 func (info *LmqdInfo) GetLastUpdate() time.Time {
 	timestamp := info.lastUpdate.Load()
-	return time.Unix(0, timestamp)
+	return time.Unix(timestamp, 0)
 }
 
 func (info *LmqdInfo) SetLastUpdate(updateTime time.Time) {
