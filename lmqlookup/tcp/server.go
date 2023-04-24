@@ -188,4 +188,9 @@ func registerHandler(server serveriface.IServer, registrationDB iface.IRegistrat
 	server.RegisterHandler(protocol.TombstoneTopicID, &TombstoneHandler{
 		RegisterBaseHandler(protocol.TombstoneTopicID, registrationDB),
 	})
+
+	// nodes
+	server.RegisterHandler(protocol.NodesID, &NodesHandler{
+		RegisterBaseHandler(protocol.NodesID, registrationDB),
+	})
 }

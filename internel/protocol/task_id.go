@@ -27,4 +27,5 @@ const (
 	TopicsID
 	ChannelsID
 	TombstoneTopicID
+	NodesID
 )
