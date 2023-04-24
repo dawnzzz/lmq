@@ -31,11 +31,12 @@ var (
 )
 
 type lookupPeer struct {
-	host     string              // lmq lookup的地址
-	port     int                 // lmq lookup的端口
-	client   serveriface.IClient // 记录与lmq lookup连接的客户端
-	cond     *sync.Cond          // 唤醒因为没有连接lookup被阻塞的协程
-	interval time.Duration       // 向lmq lookup发送心跳的时间间隔
+	host         string              // lmq lookup的地址
+	port         int                 // lmq lookup的端口
+	client       serveriface.IClient // 记录与lmq lookup连接的客户端
+	isConnecting atomic.Bool
+	cond         *sync.Cond    // 唤醒因为没有连接lookup被阻塞的协程
+	interval     time.Duration // 向lmq lookup发送心跳的时间间隔
 
 	channelsRequestChan  chan *channelsReq // sendTopicChannels的响应信息
 	channelsResponseChan chan *channelsReq // sendTopicChannels的返回信息
@@ -150,12 +151,17 @@ func (peer *lookupPeer) close() {
 
 // 连接
 func (peer *lookupPeer) connect() (err error) {
+	if !peer.isConnecting.CompareAndSwap(false, true) {
+		return nil
+	}
+	defer peer.isConnecting.Store(false)
+
+	if peer.client != nil {
+		return nil
+	}
+
 	peer.channelsRequestChan = make(chan *channelsReq, defaultChanSize)  // 连接时清空队列
 	peer.channelsResponseChan = make(chan *channelsReq, defaultChanSize) // 连接时清空队列
-	if peer.client != nil {
-		peer.client.Stop()
-		peer.client = nil
-	}
 
 	defer func() {
 		if err != nil { // 连接时发生了错误
@@ -179,6 +185,8 @@ func (peer *lookupPeer) connect() (err error) {
 				// 关闭连接进行重连
 				select {
 				case peer.connectChan <- struct{}{}:
+					peer.client.Stop()
+					peer.client = nil
 				default:
 				}
 			}()
@@ -299,8 +307,11 @@ func (peer *lookupPeer) sendTopicChannels(topicName string) error {
 		case peer.connectChan <- struct{}{}:
 		default:
 		}
-		peer.cond.L.Unlock()
-		return errors.New("lmq lookup server is not connected") // 没有连接lookup
+		peer.cond.Wait() // 等待连接/连接失败
+		if peer.client == nil {
+			peer.cond.L.Unlock()
+			return errors.New("lmq lookup server is not connected")
+		}
 	}
 	defer peer.cond.L.Unlock()
 
