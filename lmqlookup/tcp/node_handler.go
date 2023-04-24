@@ -4,15 +4,8 @@ import (
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
 	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
+	"github.com/dawnzzz/lmq/internel/protocol"
 )
-
-type Node struct {
-	RemoteAddress string   `json:"remote_address"`
-	Hostname      string   `json:"hostname"`
-	TCPPort       int      `json:"tcp_port"`
-	Tombstones    []bool   `json:"tombstones"`
-	Topics        []string `json:"topics"`
-}
 
 type NodesHandler struct {
 	*BaseHandler
@@ -21,7 +14,7 @@ type NodesHandler struct {
 func (h *NodesHandler) Handle(request serveriface.IRequest) {
 	// 筛选出存活的节点（不过滤tombstone的节点）
 	producers := h.registrationDB.FindProducers(iface.LmqdCategory, "", "").FilterByActive(config.GlobalLmqLookupConfig.InactiveProducerTimeout, 0)
-	nodes := make([]*Node, producers.Len())
+	nodes := make([]*protocol.Node, producers.Len())
 	topicProducersMap := make(map[string]iface.IProducers)
 	for i := 0; i < producers.Len(); i++ {
 		p := producers.GetItem(i)
@@ -44,7 +37,7 @@ func (h *NodesHandler) Handle(request serveriface.IRequest) {
 			}
 		}
 
-		nodes[i] = &Node{
+		nodes[i] = &protocol.Node{
 			RemoteAddress: p.GetLmqdInfo().GetRemoteAddress(),
 			Hostname:      p.GetLmqdInfo().GetHostName(),
 			TCPPort:       p.GetLmqdInfo().GetTcpPort(),
@@ -53,5 +46,5 @@ func (h *NodesHandler) Handle(request serveriface.IRequest) {
 		}
 	}
 
-	_ = h.SendDataResponse(request, nodes)
+	_ = h.SendNodesResponse(request, nodes)
 }

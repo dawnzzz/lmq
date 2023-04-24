@@ -14,12 +14,21 @@ var bufPool = sync.Pool{
 	},
 }
 
+type Node struct {
+	RemoteAddress string   `json:"remote_address"`
+	Hostname      string   `json:"hostname"`
+	TCPPort       int      `json:"tcp_port"`
+	Tombstones    []bool   `json:"tombstones"`
+	Topics        []string `json:"topics"`
+}
+
 type ResponseBody struct {
 	TaskID    uint32         `json:"task_id"`
 	IsError   bool           `json:"is_error"`
 	StatusMsg string         `json:"status_msg"`        // 当发生错误时，为错误提示信息，否则为OK
 	Message   iface.IMessage `json:"message,omitempty"` // 消息数据
 	Data      interface{}    `json:"data,omitempty"`    // 其他数据，如lookup topics中，就是topic列表。
+	Nodes     []*Node        `json:"nodes,omitempty"`   // nodes数据
 }
 
 func MakeStatusResponse(taskID uint32, err error) []byte {
@@ -64,6 +73,22 @@ func MakeDataResponse(taskID uint32, data interface{}) []byte {
 		TaskID:    taskID,
 		StatusMsg: "OK",
 		Data:      data,
+	}
+
+	buffer := bufPool.Get().(*bytes.Buffer)
+	defer bufPool.Put(buffer)
+	buffer.Reset()
+
+	_ = json.NewEncoder(buffer).Encode(&responseBody)
+
+	return buffer.Bytes()
+}
+
+func MakeNodesResponse(taskID uint32, nodes []*Node) []byte {
+	responseBody := &ResponseBody{
+		TaskID:    taskID,
+		StatusMsg: "OK",
+		Nodes:     nodes,
 	}
 
 	buffer := bufPool.Get().(*bytes.Buffer)

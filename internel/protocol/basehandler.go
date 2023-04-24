@@ -19,6 +19,10 @@ func (h *BaseHandler) SendDataResponse(request serveriface.IRequest, data interf
 	return request.GetConnection().SendBufMsg(h.TaskID, MakeDataResponse(h.TaskID, data))
 }
 
+func (h *BaseHandler) SendNodesResponse(request serveriface.IRequest, nodes []*Node) error {
+	return request.GetConnection().SendBufMsg(h.TaskID, MakeNodesResponse(h.TaskID, nodes))
+}
+
 func (h *BaseHandler) SendStatusResponse(request serveriface.IRequest, err error) error {
 	return request.GetConnection().SendBufMsg(h.TaskID, MakeStatusResponse(h.TaskID, err))
 }
