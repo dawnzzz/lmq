@@ -151,6 +151,12 @@ func (peer *lookupPeer) close() {
 
 // 连接
 func (peer *lookupPeer) connect() (err error) {
+	defer func() {
+		if panicErr := recover(); panicErr != nil {
+			peer.client = nil
+			peer.connectChan <- struct{}{}
+		}
+	}()
 	if !peer.isConnecting.CompareAndSwap(false, true) {
 		return nil
 	}
@@ -347,6 +353,12 @@ func (peer *lookupPeer) sendTopicChannels(topicName string) error {
 
 // 向lookup服务器发送消息，调用此函数时已经加锁了
 func (peer *lookupPeer) doSendWithLook(id uint32, data []byte) (err error) {
+	defer func() {
+		if panicErr := recover(); panicErr != nil {
+			peer.client = nil
+			peer.connectChan <- struct{}{}
+		}
+	}()
 	defer func() {
 		if err != nil { // 出现了错误，进行重连
 			select {
