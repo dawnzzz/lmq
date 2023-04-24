@@ -49,7 +49,7 @@ func (registration Registration) IsMatch(category iface.Category, key string, su
 		return false
 	}
 
-	if subKey != "*" && registration.SubKey != key {
+	if subKey != "*" && registration.SubKey != subKey {
 		return false
 	}
 
