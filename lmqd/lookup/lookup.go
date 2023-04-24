@@ -7,6 +7,7 @@ import (
 )
 
 type Manager struct {
+	lmqd        iface.ILmqDaemon
 	lookupPeers []*lookupPeer
 	notifyChan  chan interface{} // 用于通知lookup本节点的topic或者channel更新了
 	isExiting   atomic.Bool
@@ -15,13 +16,14 @@ type Manager struct {
 	utils.WaitGroupWrapper
 }
 
-func NewManager(lookupAddresses []string) iface.ILookupManager {
+func NewManager(lmqd iface.ILmqDaemon, lookupAddresses []string) iface.ILookupManager {
 	lookupPeers := make([]*lookupPeer, len(lookupAddresses))
 	for i, address := range lookupAddresses {
-		lookupPeers[i], _ = newLookupPeer(address)
+		lookupPeers[i], _ = newLookupPeer(lmqd, address)
 	}
 
 	m := &Manager{
+		lmqd:        lmqd,
 		lookupPeers: lookupPeers,
 		notifyChan:  make(chan interface{}),
 		exitChan:    make(chan struct{}),

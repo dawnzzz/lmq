@@ -53,7 +53,7 @@ func NewLmqDaemon() iface.ILmqDaemon {
 		exitChan: make(chan struct{}, 1),
 	}
 	lmqd.tcpServer = tcp.NewTcpServer(lmqd)
-	lmqd.lookupManager = lookup.NewManager(config.GlobalLmqdConfig.LookupAddresses)
+	lmqd.lookupManager = lookup.NewManager(lmqd, config.GlobalLmqdConfig.LookupAddresses)
 	lmqd.status.Store(starting)
 
 	return lmqd
@@ -113,6 +113,19 @@ func (lmqd *LmqDaemon) Exit() {
 	}
 
 	close(lmqd.exitChan)
+}
+
+// GetTopics 获取所有的topics
+func (lmqd *LmqDaemon) GetTopics() []iface.ITopic {
+	lmqd.topicsLock.RLock()
+	defer lmqd.topicsLock.RUnlock()
+
+	topics := make([]iface.ITopic, 0, len(lmqd.topics))
+	for _, t := range lmqd.topics {
+		topics = append(topics, t)
+	}
+
+	return topics
 }
 
 // GetTopic 根据名字获取一个topic，如果不存在则新建一个topic

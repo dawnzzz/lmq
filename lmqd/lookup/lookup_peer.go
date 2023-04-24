@@ -6,6 +6,7 @@ import (
 	"github.com/dawnzzz/hamble-tcp-server/hamble"
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
 	"github.com/dawnzzz/lmq/config"
+	"github.com/dawnzzz/lmq/iface"
 	"github.com/dawnzzz/lmq/internel/protocol"
 	"github.com/dawnzzz/lmq/logger"
 	"net"
@@ -31,6 +32,7 @@ var (
 )
 
 type lookupPeer struct {
+	lmqd         iface.ILmqDaemon
 	host         string              // lmq lookup的地址
 	port         int                 // lmq lookup的端口
 	client       serveriface.IClient // 记录与lmq lookup连接的客户端
@@ -40,7 +42,7 @@ type lookupPeer struct {
 
 	channelsRequestChan  chan *channelsReq // sendTopicChannels的响应信息
 	channelsResponseChan chan *channelsReq // sendTopicChannels的返回信息
-	connectChan          chan struct{}     // 当这个chan中有一个消息时，表示需要与lookup进行连接了
+	reconnectChan        chan struct{}     // 当这个chan中有一个消息时，表示需要与lookup进行连接了
 	isClosing            atomic.Bool
 	exitChan             chan struct{}
 }
@@ -78,7 +80,7 @@ func (h *channelsRecvHandler) Handle(request serveriface.IRequest) {
 	}
 }
 
-func newLookupPeer(lookupAddress string) (*lookupPeer, error) {
+func newLookupPeer(lmqd iface.ILmqDaemon, lookupAddress string) (*lookupPeer, error) {
 	host, portStr, err := net.SplitHostPort(lookupAddress)
 	if err != nil {
 		return nil, err
@@ -86,6 +88,7 @@ func newLookupPeer(lookupAddress string) (*lookupPeer, error) {
 	port, _ := strconv.Atoi(portStr)
 
 	peer := &lookupPeer{
+		lmqd:     lmqd,
 		host:     host,
 		port:     port,
 		interval: config.GlobalLmqdConfig.HeartBeatInterval,
@@ -93,7 +96,7 @@ func newLookupPeer(lookupAddress string) (*lookupPeer, error) {
 		cond:                 sync.NewCond(&sync.Mutex{}),
 		channelsRequestChan:  make(chan *channelsReq, defaultChanSize),
 		channelsResponseChan: make(chan *channelsReq, defaultChanSize),
-		connectChan:          make(chan struct{}, 1),
+		reconnectChan:        make(chan struct{}, 1),
 		exitChan:             make(chan struct{}),
 	}
 	return peer, nil
@@ -116,9 +119,9 @@ func (peer *lookupPeer) loop() {
 		}
 
 		select {
-		case <-peer.connectChan:
-			// 连接lmq lookup
-			err := peer.connect()
+		case <-peer.reconnectChan:
+			// 重新连接lmq lookup
+			err := peer.reconnect()
 			if err != nil {
 				continue
 			}
@@ -154,7 +157,75 @@ func (peer *lookupPeer) connect() (err error) {
 	defer func() {
 		if panicErr := recover(); panicErr != nil {
 			peer.client = nil
-			peer.connectChan <- struct{}{}
+			peer.reconnectChan <- struct{}{}
+		}
+	}()
+	if !peer.isConnecting.CompareAndSwap(false, true) {
+		return nil
+	}
+	defer peer.isConnecting.Store(false)
+
+	if peer.client != nil {
+		return nil
+	}
+
+	defer func() {
+		if err != nil { // 连接时发生了错误
+			if peer.client != nil {
+				peer.client.Stop()
+				peer.client = nil
+			}
+		}
+
+		peer.cond.Broadcast() // 唤醒所有阻塞的线程
+	}()
+
+	// 与lmq look建立连接
+	peer.client, err = hamble.NewClient("tcp", peer.host, peer.port)
+	if err == nil { // 连接成功
+		go func() {
+			handler.peer = peer
+			peer.client.RegisterHandler(protocol.ChannelsID, handler)
+			peer.client.Start()
+			// 关闭连接进行重连
+			select {
+			case peer.reconnectChan <- struct{}{}:
+				peer.client.Stop()
+				peer.client = nil
+			default:
+			}
+		}()
+	}
+	if err != nil {
+		return
+	}
+
+	// 发送identify消息
+	address := peer.client.GetConnection().GetConn().LocalAddr().String()
+	host, _, _ := net.SplitHostPort(address)
+	requestBody := protocol.RequestBody{
+		RemoteAddress: peer.client.GetConnection().GetConn().LocalAddr().String(),
+		Hostname:      host,
+		TcpPort:       config.GlobalLmqdConfig.TcpPort,
+	}
+	data, err := json.Marshal(requestBody)
+	if err != nil {
+		return
+	}
+
+	err = peer.client.GetConnection().SendBufMsg(protocol.IdentityID, data)
+	if err != nil {
+		return
+	}
+
+	return nil
+}
+
+func (peer *lookupPeer) reconnect() (err error) {
+	defer func() {
+		if panicErr := recover(); panicErr != nil {
+			peer.client = nil
+			peer.reconnectChan <- struct{}{}
 		}
 	}()
 	if !peer.isConnecting.CompareAndSwap(false, true) {
@@ -190,7 +261,7 @@ func (peer *lookupPeer) connect() (err error) {
 				peer.client.Start()
 				// 关闭连接进行重连
 				select {
-				case peer.connectChan <- struct{}{}:
+				case peer.reconnectChan <- struct{}{}:
 					peer.client.Stop()
 					peer.client = nil
 				default:
@@ -217,9 +288,44 @@ func (peer *lookupPeer) connect() (err error) {
 	if err != nil {
 		return
 	}
-	_ = peer.client.GetConnection().SendBufMsg(protocol.IdentityID, data)
+
+	err = peer.client.GetConnection().SendBufMsg(protocol.IdentityID, data)
 	if err != nil {
 		return
+	}
+
+	// 注册所有的topic和channel
+	for _, t := range peer.lmqd.GetTopics() {
+		// 注册topic
+		requestBody = protocol.RequestBody{
+			TopicName: t.GetName(),
+		}
+		data, err = json.Marshal(requestBody)
+		if err != nil {
+			continue
+		}
+		// 发送消息
+		err = peer.doSendWithLook(protocol.RegisterID, data)
+		if err != nil {
+			return err
+		}
+
+		// 注册topic下的channel
+		for _, channelName := range t.GetChannelNames() {
+			requestBody = protocol.RequestBody{
+				TopicName:   t.GetName(),
+				ChannelName: channelName,
+			}
+			data, err = json.Marshal(requestBody)
+			if err != nil {
+				continue
+			}
+			// 发送消息
+			err = peer.doSendWithLook(protocol.RegisterID, data)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -231,7 +337,7 @@ func (peer *lookupPeer) sendHeartbeatPing() (err error) {
 	defer peer.cond.L.Unlock()
 	if peer.client == nil {
 		select {
-		case peer.connectChan <- struct{}{}:
+		case peer.reconnectChan <- struct{}{}:
 		default:
 		}
 		return errors.New("lmq lookup server is not connected")
@@ -247,7 +353,7 @@ func (peer *lookupPeer) sendRegistration(unRegister bool, topicName, channelName
 	if peer.client == nil {
 		// 没有连接lookup
 		select {
-		case peer.connectChan <- struct{}{}:
+		case peer.reconnectChan <- struct{}{}:
 		default:
 		}
 		peer.cond.Wait() // 等待连接/连接失败
@@ -310,7 +416,7 @@ func (peer *lookupPeer) sendTopicChannels(topicName string) error {
 	if peer.client == nil {
 		// 没有连接lookup
 		select {
-		case peer.connectChan <- struct{}{}:
+		case peer.reconnectChan <- struct{}{}:
 		default:
 		}
 		peer.cond.Wait() // 等待连接/连接失败
@@ -336,7 +442,7 @@ func (peer *lookupPeer) sendTopicChannels(topicName string) error {
 	err = peer.doSendWithLook(protocol.ChannelsID, data)
 	if err != nil { // 在发送消息时错误，则进行重连
 		select {
-		case peer.connectChan <- struct{}{}:
+		case peer.reconnectChan <- struct{}{}:
 		default:
 		}
 		peer.cond.L.Unlock()
@@ -356,13 +462,13 @@ func (peer *lookupPeer) doSendWithLook(id uint32, data []byte) (err error) {
 	defer func() {
 		if panicErr := recover(); panicErr != nil {
 			peer.client = nil
-			peer.connectChan <- struct{}{}
+			peer.reconnectChan <- struct{}{}
 		}
 	}()
 	defer func() {
 		if err != nil { // 出现了错误，进行重连
 			select {
-			case peer.connectChan <- struct{}{}:
+			case peer.reconnectChan <- struct{}{}:
 			default:
 			}
 		}
