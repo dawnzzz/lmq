@@ -7,6 +7,7 @@ import (
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
 	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/internel/protocol"
+	"github.com/dawnzzz/lmq/logger"
 	"net"
 	"strconv"
 	"sync"
@@ -223,7 +224,8 @@ func (peer *lookupPeer) sendHeartbeatPing() (err error) {
 	}
 
 	// 发送一条心跳消息
-	return peer.doSendWithLook(protocol.IdentityID, pingBytes)
+	logger.Infof("send heartbeat ping msg to LMQ Lookup(%s:%d)", peer.host, peer.port)
+	return peer.doSendWithLook(protocol.PingID, pingBytes)
 }
 
 func (peer *lookupPeer) sendRegistration(unRegister bool, topicName, channelName string) (err error) {
