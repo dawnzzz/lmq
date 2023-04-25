@@ -1,8 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/lmqlookup"
+	"os"
 )
 
 const banner = `
@@ -18,6 +21,24 @@ powered by https://github.com/dawnzzz/lmq
 `
 
 func main() {
+	// 加载配置信息
+	var configFilename string
+	configFilename = *flag.String("f", config.DefaultLmqLookupFilename, "LMQ Daemon yaml config file")
+	_, err := os.Stat(configFilename)
+	if err != nil && !os.IsNotExist(err) {
+		panic(err)
+	} else if err != nil {
+		configFilename = config.DefaultLmqLookupFilename
+		_, err = os.Stat(configFilename)
+		if err != nil {
+			panic(err)
+		}
+	}
+	err = config.LoadConfigFile(configFilename, &config.GlobalLmqdConfig)
+	if err != nil {
+		panic(err)
+	}
+
 	fmt.Print(banner)
 
 	lookup := lmqlookup.NewLmqLookUp()

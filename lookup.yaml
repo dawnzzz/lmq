@@ -1,0 +1,11 @@
+tcp_host: 0.0.0.0
+tcp_port: 6300
+
+# TCP服务器配置
+tcp_server_worker_pool_size: 10
+tcp_server_max_worker_task_len: 2048
+tcp_server_max_msg_chan_len: 2048
+tcp_server_max_conn: 10000
+
+inactive_producer_timeout: 300s # 心跳检查超时时间
+tombstone_lifetime: 45s

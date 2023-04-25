@@ -1,0 +1,28 @@
+tcp_host: 0.0.0.0   # 监听客户端的连接地址
+tcp_port: 6203  # 监听客户端的端口号
+
+# 消息长度限制
+min_message_size: 0
+max_message_size: 1024768
+
+# 队列以及持久化相关
+data_root_path: data3
+sync_every: 10
+sync_timeout: 10s
+max_bytes_per_file: 67108864  # 64M
+mem_queue_size: 100
+
+# TCP服务器配置
+tcp_server_worker_pool_size: 10
+tcp_server_max_worker_task_len: 2048
+tcp_server_max_msg_chan_len: 2048
+tcp_server_max_conn: 12000
+
+# 消息超时配置
+message_timeout: 5s
+scan_queue_interval: 100ms
+
+# lookup和心跳配置
+heart_beat_interval: 60s
+lookup_addresses:
+  - "127.0.0.1:6300"
