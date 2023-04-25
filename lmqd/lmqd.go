@@ -1,9 +1,11 @@
 package lmqd
 
 import (
+	"errors"
 	serveriface "github.com/dawnzzz/hamble-tcp-server/iface"
 	"github.com/dawnzzz/lmq/config"
 	"github.com/dawnzzz/lmq/iface"
+	"github.com/dawnzzz/lmq/internel/dirlock"
 	"github.com/dawnzzz/lmq/internel/utils"
 	"github.com/dawnzzz/lmq/lmqd/lookup"
 	"github.com/dawnzzz/lmq/lmqd/tcp"
@@ -42,9 +44,10 @@ type LmqDaemon struct {
 	waitGroup utils.WaitGroupWrapper
 
 	exitChan chan struct{}
+	dirLock  *dirlock.DirLock
 }
 
-func NewLmqDaemon() iface.ILmqDaemon {
+func NewLmqDaemon() (iface.ILmqDaemon, error) {
 	lmqd := &LmqDaemon{
 		clientIDMap: make(map[serveriface.IConnection]uint64),
 
@@ -55,8 +58,13 @@ func NewLmqDaemon() iface.ILmqDaemon {
 	lmqd.tcpServer = tcp.NewTcpServer(lmqd)
 	lmqd.lookupManager = lookup.NewManager(lmqd, config.GlobalLmqdConfig.LookupAddresses)
 	lmqd.status.Store(starting)
+	lmqd.dirLock = dirlock.NewDirLock(config.GlobalLmqdConfig.DataRootPath)
+	if success := lmqd.dirLock.TryLock(); !success { // 尝试对文件夹上锁
+		// 如果上锁失败，则返回错误
+		return nil, errors.New("please change your DataRootPath, another lmqd is using this dir as DataRootPath")
+	}
 
-	return lmqd
+	return lmqd, nil
 }
 
 func (lmqd *LmqDaemon) Main() {
@@ -105,6 +113,9 @@ func (lmqd *LmqDaemon) Exit() {
 
 	// 持久化元数据信息
 	_ = lmqd.PersistMetaData()
+
+	// 文件夹解锁
+	lmqd.dirLock.Unlock()
 
 	select {
 	case lmqd.exitChan <- struct{}{}:

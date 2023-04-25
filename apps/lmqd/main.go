@@ -32,7 +32,10 @@ func main() {
 		panic(err)
 	}
 
-	lmqDaemon := lmqd.NewLmqDaemon()
+	lmqDaemon, err := lmqd.NewLmqDaemon()
+	if err != nil {
+		panic(err)
+	}
 
 	// 加载元数据，持久化元数据，检查是否正常
 	err = lmqDaemon.LoadMetaData()
