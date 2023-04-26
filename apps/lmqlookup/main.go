@@ -20,7 +20,7 @@ const banner = `
 powered by https://github.com/dawnzzz/lmq
 `
 
-func main() {
+func init() {
 	// 加载配置信息
 	var configFilename string
 	configFilename = *flag.String("f", config.DefaultLmqLookupFilename, "LMQ Daemon yaml config file")
@@ -38,7 +38,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+}
 
+func main() {
 	fmt.Print(banner)
 
 	lookup := lmqlookup.NewLmqLookUp()

@@ -20,15 +20,17 @@ const banner = `
 powered by https://github.com/dawnzzz/lmq
 `
 
-func main() {
-	// 加载配置信息
-	var configFilename string
-	configFilename = *flag.String("f", config.DefaultLmqdFilename, "LMQ Daemon yaml config file")
+var configFilename string
+
+func init() {
+	flag.StringVar(&configFilename, "f", config.DefaultLmqdFilename, "LMQ Daemon yaml config file")
+	flag.Parse()
 	_, err := os.Stat(configFilename)
 	if err != nil && !os.IsNotExist(err) {
 		panic(err)
 	} else if err != nil {
 		configFilename = config.DefaultLmqdFilename
+
 		_, err = os.Stat(configFilename)
 		if err != nil {
 			panic(err)
@@ -38,10 +40,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+}
 
+func main() {
+	// 加载配置信息
 	fmt.Print(banner)
 
-	_, err = os.Stat(config.GlobalLmqdConfig.DataRootPath)
+	_, err := os.Stat(config.GlobalLmqdConfig.DataRootPath)
 	if os.IsNotExist(err) {
 		innerErr := os.MkdirAll(config.GlobalLmqdConfig.DataRootPath, 0600)
 		if innerErr != nil {
