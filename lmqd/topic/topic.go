@@ -425,7 +425,7 @@ func (topic *Topic) messagePump() {
 		case <-topic.closingChan: // 退出
 			goto Exit
 		case <-topic.pauseChan: // 暂停/恢复
-			if topic.IsPausing() {
+			if !topic.IsPausing() {
 				memoryMsgChan = topic.memoryMsgChan
 				backendMsgChan = topic.backendQueue.ReadChan()
 			} else {
