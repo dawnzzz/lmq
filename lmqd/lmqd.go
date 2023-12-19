@@ -160,7 +160,6 @@ func (lmqd *LmqDaemon) GetTopic(name string) (iface.ITopic, error) {
 	lmqd.topicsLock.Lock()
 	defer lmqd.topicsLock.Unlock()
 	if t, exist := lmqd.topics[name]; exist {
-		lmqd.topicsLock.Unlock()
 		// topic已经存在，直接返回
 		return t, nil
 	}
